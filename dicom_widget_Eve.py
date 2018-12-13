@@ -1,0 +1,143 @@
+import sys
+import math
+import numpy as np
+from PyQt5.QtWidgets import QWidget, QApplication
+from PyQt5.QtCore import Qt, pyqtSignal
+from Operation.dicom_widget import DicomWidget
+from Operation.dicom_data import DicomData
+
+
+class Dicom2Dwindow(QWidget):
+    # drawSignle = pyqtSignal(list)
+    def __init__(self, **kwargs):
+        super(Dicom2Dwindow, self).__init__()
+        self._axis = 0
+        self._path = kwargs.get('dirPath',None)
+        self._cutfac = kwargs.get('cutface', 0)
+
+        self.neighbor = [None, None]
+
+        self.initUI()
+        self.show()
+    def initUI(self):
+        self.setGeometry(300, 300, 300, 300)
+        self.setWindowTitle('Loading...')
+
+        self.label = QWidget(self)
+        self.datas = []
+        self.datas = DicomData.from_files(self._path)
+
+        self.maxlevel = max(self.datas.shape)
+        self.minlevel = min(self.datas.shape)
+
+        self.xAxis, self.yAxis, self.zAxis = self.datas.shape
+
+        # self.pixScaleSize = int((self.maxlevel / self.minlevel))
+        # self.pixScaleSize = int(self.pixScaleSize/2)
+        self.pixScaleSize = 1
+
+        self.pixAppendup = 0
+        self.pixAppenddown = 0
+
+        if self.pixScaleSize <= 1:
+            self.pixAppendup = math.floor((self.maxlevel - self.minlevel)/2)
+            self.pixAppenddown = math.floor((self.maxlevel - self.minlevel) - self.pixAppendup)
+            self.pixScaleSize = 1
+            print('Jump')
+        else:
+            self.pixAppendup = math.floor((self.maxlevel - int(self.minlevel * self.pixScaleSize)) / 2)
+            self.pixAppenddown = math.floor((self.maxlevel - int(self.minlevel * self.pixScaleSize))) - self.pixAppendup
+            print('not jump')
+
+        # cunt append horizantol and vertical
+        self.AppendA = np.full((512, 512, self.pixAppendup), -2000)
+        self.AppendB = np.full((512, 512, self.pixAppenddown), -2000)
+        print(self.pixScaleSize)
+        print(self.pixAppenddown)
+        print(self.pixAppendup)
+
+        vlineColor = Qt.blue
+        hlineColor = Qt.green
+
+        if self._cutfac == 1:
+            self.datas = np.stack(self.datas, 2)
+            self.datas = np.repeat(self.datas, self.pixScaleSize, axis=2)
+            self.appendPix()
+            for i in range(0, self.datas.shape[0] - 1):
+                self.datas[i] = np.fliplr(self.datas[i])
+
+            vlineColor = Qt.blue
+            hlineColor = Qt.green
+
+
+            self._axis = 1
+
+        elif self._cutfac == 2:
+            print(self.xAxis, self.yAxis, self.zAxis)
+            self.datas = np.stack(self.datas, 2)
+            self.datas = np.stack(self.datas, 1)
+            self.datas = np.repeat(self.datas, self.pixScaleSize, axis=2)
+            self.appendPix()
+
+            for i in range(0, self.datas.shape[0] - 1):
+                self.datas[i] = np.fliplr(self.datas[i])
+
+            vlineColor = Qt.yellow
+            hlineColor = Qt.green
+
+            self._axis = 1
+        else:
+            self.scaleSizeY = self.maxlevel
+            self.scaleSizeY = self.maxlevel
+            vlineColor = Qt.blue
+            hlineColor = Qt.yellow
+            self._axis = 0
+            pass
+
+        self.pix_label = DicomWidget(self, data=np.stack(self.datas[0], axis=self._axis), axis=self._axis)
+        self.pix_label.pixmaps = self.datas
+        self.pix_label.winSize[0] = self.minlevel
+        self.pix_label.winSize[1] = self.maxlevel
+        self.pix_label.update_image()
+        self.pix_label.pen1.setColor(vlineColor)
+        self.pix_label.pen2.setColor(hlineColor)
+        self.pix_label.setScaledContents(True)
+        # if self._cutfac != 0:
+        #     self.pix_label.move(self.width()/4, 0)
+
+        self.show()
+    def appendPix(self):
+        if self.pixScaleSize >= 1:
+            self.datas = np.concatenate((self.datas, self.AppendA), axis=2)
+            self.datas = np.concatenate((self.AppendB, self.datas), axis=2)
+        else:
+            print('Dont need pixScaleSize')
+        pass
+    def resizeEvent(self, QResizeEvent):
+        # if self._cutfac != 0:
+        #     # sizeX = math.floor(self.height() * (self.minlevel / self.maxlevel) * (self.maxlevel / self.minlevel))
+        #     sizeX = self.height()
+        #     sizeY = self.height()
+        #     self.pix_label.winSize[0] = sizeX
+        #     self.pix_label.winSize[1] = sizeY
+        #     self.pix_label.getResizeEvent(sizeX, sizeY)
+        #     print(self.pixScaleSize)
+        # elif self._cutfac == 0:
+        if self.width() < self.height():
+            self.pix_label.winSize[0] = self.width()
+            self.pix_label.winSize[1] = self.width()
+            self.pix_label.getResizeEvent(self.width(), self.width())
+        else:
+            self.pix_label.winSize[0] = self.height()
+            self.pix_label.winSize[1] = self.height()
+            self.pix_label.getResizeEvent(self.height(), self.height())
+
+        pass
+
+
+
+
+# if __name__ == '__main__':
+#     app = QApplication(sys.argv)
+#     win = Dicom2Dwindow('D:/Dicomfile/brian_and_vessel/SE3', cutface=0)
+#     sys.exit(app.exec_())
