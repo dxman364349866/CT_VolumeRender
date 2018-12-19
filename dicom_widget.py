@@ -4,7 +4,7 @@ from PyQt5 import QtWidgets, QtCore, QtGui
 from PyQt5.QtWidgets import QLabel,QHBoxLayout
 from PyQt5.QtCore import QPoint, Qt, pyqtSignal
 from PyQt5.QtGui import QPen, QPainter
-import Operation.dicom_data as dicom_data
+import dicom_data as dicom_data
 import numpy as np
 import math
 
@@ -13,6 +13,7 @@ class DicomWidget(QLabel):
     """Widget for displaying DICOM data.
     """
     Drawsignle = QtCore.pyqtSignal(list)
+    Targetsignle = QtCore.pyqtSignal(list)
 
     def __init__(self,parent=None, **kwargs):
         # Qt initialization
@@ -36,15 +37,20 @@ class DicomWidget(QLabel):
         self.pixmaps = None
         self.winSize = [256, 256]
 
-
+        self.volumeShape = self._data.shape
         self.pos = None
+
         self.pen1 = QPen(Qt.blue, 1)
         self.pen2 = QPen(Qt.green, 1)
+        self.distancLine = QPen(Qt.white, 1)
+
 
         self.hLayout = QHBoxLayout(self)
 
         self.setScaledContents(True)
         self.drawCoord = [512, 512]
+        self.drawCoord2 = [512, 512]
+
         self.TmpRect = QtCore.QRect(0, 0, 512, 512)
         self.choiceNum = 0
 
@@ -78,7 +84,7 @@ class DicomWidget(QLabel):
     def update_image(self):
         if self._data is not None:
             raw_data = self._data#.get_slice(0, 0)
-            shape = raw_data.shape
+            # shape = raw_data.shape
             data = (raw_data - self._low_hu) / self.window_width * 256
             data[data < 0] = 0
             data[data > 255] = 255
@@ -89,7 +95,7 @@ class DicomWidget(QLabel):
             self._image = None
         self.update_pixmap()
         self.resize(self.winSize[0], self.winSize[1])
-        # self.resize(282, 512)
+        pass
 
     def update_pixmap(self):
         if self._image is not None:
@@ -101,36 +107,61 @@ class DicomWidget(QLabel):
             # self.resize(282, 512)
         else:
             self.setText("No image.")
+        pass
 
     def redrawLine(self, axis, coord):
         if axis == 0:
             self.drawCoord[0] = coord[0]
         elif axis == 1:
             self.drawCoord[1] = coord[1]
+        pass
 
+
+# ==================just Qt Event==============
     def mouseMoveEvent(self, event):
-        self.pos = event.pos()
-        if(self.pos.x()>= 0 and self.pos.x() < self.width() and self.pos.y() >= 0 and self.pos.y() < self.height()):
-            self.drawCoord[0] = self.pos.x()
-            self.drawCoord[1] = self.pos.y()
-            maxnum = max(self._data.shape)
-            xaxis = math.floor(maxnum * self.pos.x() / self.width())
-            yaxis = math.floor(maxnum * self.pos.y() / self.height())
-            self.Drawsignle.emit([xaxis, yaxis])
-            self.update_image()
-            self.resize(self.winSize[0], self.winSize[1])
-            # self.resize(282, 512)
+        if event.buttons() == Qt.LeftButton:
+            self.pos = event.pos()
+            if(self.pos.x()>= 0 and self.pos.x() < self.width() and self.pos.y() >= 0 and self.pos.y() < self.height()):
+                self.drawCoord[0] = self.pos.x()
+                self.drawCoord[1] = self.pos.y()
+                maxnum = max(self._data.shape)
+                xaxis = math.floor(maxnum * self.pos.x() / self.width())
+                yaxis = math.floor(maxnum * self.pos.y() / self.height())
+                self.Drawsignle.emit([xaxis, yaxis])
+                self.update_image()
+                self.resize(self.winSize[0], self.winSize[1])
+                # self._data[self._data == self.pos.x()*10] = self.pos.y()*100
+                # print(self.pos.y())
+        elif event.buttons() == Qt.RightButton:
+            self.pos = event.pos()
+            if(self.pos.x()>= 0 and self.pos.x() < self.width() and self.pos.y() >= 0 and self.pos.y() < self.height()):
+                self.drawCoord2[0] = self.pos.x()
+                self.drawCoord2[1] = self.pos.y()
+                maxnum = max(self._data.shape)
+                xaxis = math.floor(maxnum * self.pos.x() / self.width())
+                yaxis = math.floor(maxnum * self.pos.y() / self.height())
+                self.update_image()
+                self.Targetsignle.emit([xaxis, yaxis])
+                # self.resize(self.winSize[0], self.winSize[1])
+
+        pass
+
+
+        # if event.button == 3:
+        #     print('this is right button')
 
 
     def paintEvent(self, QPaintEvent):
 
+
         pen3 = QPen(Qt.red, 1)
+        pen4 = QPen(Qt.green, 1)
+
         painter = QPainter(self)
 
         # draw Hriazontal line
         painter.setPen(self.pen1)
         painter.drawPixmap(self.rect(), self._pixmap)
-        # self._image.setColorTable(self._color_table)
         painter.drawLine(self.drawCoord[0], 0, self.drawCoord[0], 512)
 
         # draw Vertical line
@@ -141,9 +172,17 @@ class DicomWidget(QLabel):
         painter.setPen(pen3)
         painter.drawPoint(self.drawCoord[0], self.drawCoord[1])
 
+        pen4.setWidth(5)
+        painter.setPen(pen4)
+        painter.drawPoint(self.drawCoord2[0], self.drawCoord2[1])
+
+        self.distancLine.setWidth(1)
+        painter.setPen(self.distancLine)
+        painter.drawLine(self.drawCoord[0], self.drawCoord[1], self.drawCoord2[0], self.drawCoord2[1])
+
+        pass
+
     def getResizeEvent(self, sizeX, sizeY):
-        # self.winSize = size
-        # self.resize(self.winSize, self.winSize)
         self.resize(sizeX, sizeY)
         pass
 

@@ -1,10 +1,10 @@
 import sys
 import math
 import numpy as np
-from PyQt5.QtWidgets import QWidget, QApplication
+from PyQt5.QtWidgets import QWidget, QApplication, QLabel
 from PyQt5.QtCore import Qt, pyqtSignal
-from Operation.dicom_widget import DicomWidget
-from Operation.dicom_data import DicomData
+from dicom_widget import DicomWidget
+from dicom_data import DicomData
 
 
 class Dicom2Dwindow(QWidget):
@@ -20,7 +20,7 @@ class Dicom2Dwindow(QWidget):
         self.initUI()
         self.show()
     def initUI(self):
-        self.setGeometry(300, 300, 300, 300)
+        self.setGeometry(0, 0, 300, 300)
         self.setWindowTitle('Loading...')
 
         self.label = QWidget(self)
@@ -32,32 +32,33 @@ class Dicom2Dwindow(QWidget):
 
         self.xAxis, self.yAxis, self.zAxis = self.datas.shape
 
-        # self.pixScaleSize = int((self.maxlevel / self.minlevel))
-        # self.pixScaleSize = int(self.pixScaleSize/2)
         self.pixScaleSize = 1
 
-        self.pixAppendup = 0
-        self.pixAppenddown = 0
+        # self.pixAppendup = 0
+        # self.pixAppenddown = 0
+        # if self.pixScaleSize <= 1:
+        #     self.pixAppendup = math.floor((self.maxlevel - self.minlevel)/2)
+        #     self.pixAppenddown = math.floor((self.maxlevel - self.minlevel) - self.pixAppendup)
+        #     # self.pixScaleSize = 3
+        #     print('Jump')
+        # else:
+        #     self.pixAppendup = math.floor((self.maxlevel - int(self.minlevel * self.pixScaleSize)) / 2)
+        #     self.pixAppenddown = math.floor((self.maxlevel - int(self.minlevel * self.pixScaleSize))) - self.pixAppendup
+        #     # self.pixScaleSize = 1
+        #     print('not jump')
 
-        if self.pixScaleSize <= 1:
-            self.pixAppendup = math.floor((self.maxlevel - self.minlevel)/2)
-            self.pixAppenddown = math.floor((self.maxlevel - self.minlevel) - self.pixAppendup)
-            self.pixScaleSize = 1
-            print('Jump')
-        else:
-            self.pixAppendup = math.floor((self.maxlevel - int(self.minlevel * self.pixScaleSize)) / 2)
-            self.pixAppenddown = math.floor((self.maxlevel - int(self.minlevel * self.pixScaleSize))) - self.pixAppendup
-            print('not jump')
+        self.pixAppendup = math.floor((self.maxlevel - int(self.minlevel * self.pixScaleSize)) / 2)
+        self.pixAppenddown = math.floor((self.maxlevel - int(self.minlevel * self.pixScaleSize))) - self.pixAppendup
 
         # cunt append horizantol and vertical
         self.AppendA = np.full((512, 512, self.pixAppendup), -2000)
         self.AppendB = np.full((512, 512, self.pixAppenddown), -2000)
-        print(self.pixScaleSize)
-        print(self.pixAppenddown)
-        print(self.pixAppendup)
 
         vlineColor = Qt.blue
         hlineColor = Qt.green
+
+        self.datas[self.datas == 741] = -1164
+        self.datas[self.datas == -6534] = 3607
 
         if self._cutfac == 1:
             self.datas = np.stack(self.datas, 2)
@@ -94,6 +95,7 @@ class Dicom2Dwindow(QWidget):
             self._axis = 0
             pass
 
+    #=====================================Get DicomWidget =================================================
         self.pix_label = DicomWidget(self, data=np.stack(self.datas[0], axis=self._axis), axis=self._axis)
         self.pix_label.pixmaps = self.datas
         self.pix_label.winSize[0] = self.minlevel
@@ -102,9 +104,9 @@ class Dicom2Dwindow(QWidget):
         self.pix_label.pen1.setColor(vlineColor)
         self.pix_label.pen2.setColor(hlineColor)
         self.pix_label.setScaledContents(True)
-        # if self._cutfac != 0:
-        #     self.pix_label.move(self.width()/4, 0)
-
+    #=====================================Draw position Text =============================================
+        self.texPositionLabel = QLabel(self)
+        self.showPosition('helloCT')
         self.show()
     def appendPix(self):
         if self.pixScaleSize >= 1:
@@ -113,16 +115,14 @@ class Dicom2Dwindow(QWidget):
         else:
             print('Dont need pixScaleSize')
         pass
+
+    def showPosition(self, Text = 'hello'):
+        self.texPositionLabel.setText(Text)
+        self.texPositionLabel.setGeometry(10, 0, 500, 20)
+        self.texPositionLabel.setStyleSheet('color:red')
+        pass
     def resizeEvent(self, QResizeEvent):
-        # if self._cutfac != 0:
-        #     # sizeX = math.floor(self.height() * (self.minlevel / self.maxlevel) * (self.maxlevel / self.minlevel))
-        #     sizeX = self.height()
-        #     sizeY = self.height()
-        #     self.pix_label.winSize[0] = sizeX
-        #     self.pix_label.winSize[1] = sizeY
-        #     self.pix_label.getResizeEvent(sizeX, sizeY)
-        #     print(self.pixScaleSize)
-        # elif self._cutfac == 0:
+
         if self.width() < self.height():
             self.pix_label.winSize[0] = self.width()
             self.pix_label.winSize[1] = self.width()
@@ -139,5 +139,5 @@ class Dicom2Dwindow(QWidget):
 
 # if __name__ == '__main__':
 #     app = QApplication(sys.argv)
-#     win = Dicom2Dwindow('D:/Dicomfile/brian_and_vessel/SE3', cutface=0)
+#     win = Dicom2Dwindow(dirPath='D:/Dicomfile/CT_Test', cutface=0)
 #     sys.exit(app.exec_())

@@ -1,9 +1,12 @@
 import sys
+import math
 import numpy as np
 import vtk
 from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 from PyQt5.QtWidgets import QWidget, QApplication, QMdiSubWindow
 from PyQt5.Qt import QGridLayout, QHBoxLayout, QLayout
+from Atomic_Class import Atomic_SlicerBar as As
+from Atomic_Class import Atomic_Param as Ap
 
 class MainInteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
 
@@ -41,6 +44,7 @@ class volumeWindow(QWidget):
         self.volumMapper.SetCroppingRegionPlanes(self.planes.GetPoints().GetBounds())
         pass
 
+
     def resizeEvent(self, QResizeEvent):
         if self.width() < self.height():
             self.vtkWidget.resize(self.width(), self.width())
@@ -48,6 +52,10 @@ class volumeWindow(QWidget):
             self.vtkWidget.resize(self.height(), self.height())
         else:
             self.vtkWidget.resize(self.width(), self.height())
+
+        if self.cutSlider != None:
+            self.cutSlider.GetPoint1Coordinate().SetValue(10, self.height() - 50)
+            self.cutSlider.GetPoint2Coordinate().SetValue(200, self.height() - 50)
         pass
 
     def initUI(self):
@@ -56,13 +64,94 @@ class volumeWindow(QWidget):
         self.vtkWidget.GetRenderWindow().AddRenderer(self.ren)
         self.vtkWidget.GetRenderWindow().GetInteractor().SetInteractorStyle(MainInteractorStyle())
         self.iren = self.vtkWidget.GetRenderWindow().GetInteractor()
-        # self.iren = self.vtkWidget.GetRenderWindow().SetInteractor(vtk.vtkRenderWindowInteractor().SetInteractorStyle(MainInteractorStyle()))
 
-        # self.iren.SetInteractor(MainInteractorStyle())
-
+        self.drawPoint = [[0, 0, 0], [360, 0, 0]]
 
         self.loadFile(self._filePath)
-        self.initBoxWidget()
+
+        #================Draw CoordLine================
+        self.lineSource = vtk.vtkLineSource()
+        self.targetPoint = vtk.vtkSphereSource()
+        self.incidencePoint = vtk.vtkSphereSource()
+
+        self.drawCoordLine()
+        self.drawCoordPoint()
+        self.initCutPlane()
+        self.initCutSlider()
+        # self.initBoxWidget()
+        pass
+
+    def getDistance(self):
+        normal = [0, 0, 0]
+        normal[0] = self.drawPoint[1][0] - self.drawPoint[0][0]
+        normal[1] = self.drawPoint[1][1] - self.drawPoint[0][1]
+        normal[2] = self.drawPoint[1][2] - self.drawPoint[0][2]
+
+        distance = math.sqrt(normal[0] ** 2 + normal[1] ** 2 + normal[2] ** 2)
+        return distance
+
+    def getDirection(self):
+        distance = self.getDistance()
+        direction = [0, 0, 0]
+        direction[0] = (self.drawPoint[1][0] - self.drawPoint[0][0])/distance
+        direction[1] = (self.drawPoint[1][1] - self.drawPoint[0][1])/distance
+        direction[2] = (self.drawPoint[1][2] - self.drawPoint[0][2])/distance
+
+        return direction
+
+    def sliceCallback(self, obj, event):
+        # disance = self.getDistance()
+        tmpVal = [0, 0, 0]
+        sdiract = [0, 0, 0]
+
+        fdiract = self.cureenDirector
+        sdiract[0] = fdiract[0] * -1
+        sdiract[1] = fdiract[1] * -1
+        sdiract[2] = fdiract[2] * -1
+
+        val = self.cureenDistance * (1.0 - self.cutSlider.GetValue())
+        tmpVal[0] = self.drawPoint[1][0] + sdiract[0] * val
+        tmpVal[1] = self.drawPoint[1][1] + sdiract[1] * val
+        tmpVal[2] = self.drawPoint[1][2] + sdiract[2] * val
+
+
+        self.drawPoint[0] = tmpVal
+
+        self.lineSource.SetPoint1(self.drawPoint[0])
+        self.lineSource.SetPoint2(self.drawPoint[1])
+        # Draw Points
+        self.incidencePoint.SetCenter(self.drawPoint[0])
+        self.targetPoint.SetCenter(self.drawPoint[1])
+        self.controlCutPlane(tmpVal, fdiract)
+        self.vtkWidget.update()
+        pass
+
+    def controlCutPlane(self, cutlocation= [0.0, 0.0, 0,0], cutnormal = [0, 0, 1]):
+
+        location = cutlocation
+        normal = cutnormal
+
+        self.planeClip.SetOrigin(location[0], location[1], location[2])
+        self.planeClip.SetNormal(normal[0], normal[1], normal[2])
+
+        pass
+
+    def initCutSlider(self):
+        yAxis = self.height() - 50
+        self.cutSlider = As.Atomic_Clicer.SliderRepresentation2D(As)
+        self.CutSliderWidget = As.Atomic_Clicer.ConfigSlider(As, self.cutSlider, "CutDistance",  yAxis)
+        self.CutSliderWidget.SetInteractor(self.iren)
+        self.CutSliderWidget.EnabledOn()
+        self.cureenDistance = self.getDistance()
+        self.cureenDirector = self.getDirection()
+        self.CutSliderWidget.AddObserver('InteractionEvent', self.sliceCallback)
+        # print(self.CutSliderWidget.GetPoint1Coordinate())
+
+    def initCutPlane(self):
+        self.planeClip = vtk.vtkPlane()
+
+        self.volumMapper.AddClippingPlane(self.planeClip)
+        self.controlCutPlane(self.drawPoint[0], self.getDirection())
         pass
 
     def initBoxWidget(self):
@@ -123,7 +212,7 @@ class volumeWindow(QWidget):
         self.volume.SetProperty(self.volumeProperty)
 
         self.colors = vtk.vtkNamedColors()
-        self.colors.SetColor("BackGroundcolors", [44, 77, 89, 255])
+        self.colors.SetColor("BackGroundcolors", [255, 255, 255, 255])
 
 
         self.ren.SetBackground(self.colors.GetColor3d("BackGroundcolors"))
@@ -149,6 +238,78 @@ class volumeWindow(QWidget):
         for each in valume:
             self.volumScalarOpacity.AddPoint(each[0], each[1])
         self.vtkWidget.update()
+
+    def drawCoordLine(self):
+
+        self.lineSource.SetPoint1(self.drawPoint[0])
+        self.lineSource.SetPoint2(self.drawPoint[1])
+
+
+        colors = vtk.vtkNamedColors()
+
+        mapper = vtk.vtkPolyDataMapper()
+        mapper.SetInputConnection(self.lineSource.GetOutputPort())
+
+        actor = vtk.vtkActor()
+        actor.SetMapper(mapper)
+        actor.GetProperty().SetLineWidth(4)
+        actor.GetProperty().SetColor(colors.GetColor3d("Peacock"))
+        self.ren.AddActor(actor)
+
+        pass
+
+    def drawCoordPoint(self):
+        colors = vtk.vtkNamedColors()
+
+        # Create a TargetPoint
+        self.targetPoint.SetCenter(0.0, 0.0, 0.0)
+        self.targetPoint.SetRadius(5.0)
+        # 设置球面的细分
+        self.targetPoint.SetPhiResolution(10)
+        self.targetPoint.SetThetaResolution(10)
+
+        # Create a incidencePoint
+        self.incidencePoint.SetCenter(0., 0., 0., )
+        self.incidencePoint.SetRadius(5.0)
+        # 设置球面的细分
+        self.incidencePoint.SetPhiResolution(10)
+        self.incidencePoint.SetThetaResolution(10)
+
+
+        mapper = vtk.vtkPolyDataMapper()
+        mapper.SetInputConnection(self.targetPoint.GetOutputPort())
+
+        mapper2 = vtk.vtkPolyDataMapper()
+        mapper2.SetInputConnection(self.incidencePoint.GetOutputPort())
+
+        actor = vtk.vtkActor()
+        actor2 = vtk.vtkActor()
+
+        actor.SetMapper(mapper)
+        actor.GetProperty().SetColor(colors.GetColor3d("Red"))
+
+        actor2.SetMapper(mapper2)
+        actor2.GetProperty().SetColor(colors.GetColor3d("Blue"))
+
+        self.ren.AddActor(actor)
+        self.ren.AddActor(actor2)
+        pass
+
+
+    def drawFunction(self):
+
+        self.cureenDistance = self.getDistance()
+        self.cureenDirector = self.getDirection()
+        # Draw Line
+        self.lineSource.SetPoint1(self.drawPoint[0])
+        self.lineSource.SetPoint2(self.drawPoint[1])
+        # Draw Points
+        self.incidencePoint.SetCenter(self.drawPoint[0])
+        self.targetPoint.SetCenter(self.drawPoint[1])
+        # ControlCutPlane
+        self.controlCutPlane(self.drawPoint[0],  self.cureenDirector)
+        self.vtkWidget.update()
+        pass
 
 
 

@@ -2,7 +2,7 @@ import sys
 import os
 from PyQt5.QtWidgets import QMainWindow, QLayout, QApplication, QHBoxLayout, QFileDialog, QMenu, QPushButton, QAction
 from PyQt5.QtGui import QIcon
-from Operation.MultDicomWindowSecond import multDicomWindows
+from MultDicomWindowSecond import multDicomWindows
 
 class TestMainWindow(QMainWindow):
     def __init__(self):
@@ -11,6 +11,7 @@ class TestMainWindow(QMainWindow):
         height = 512
         self.setGeometry(30, 30, width, width)
         self.setWindowTitle('奥菲科医疗')
+        self.setWindowIcon(QIcon('../Atomic_Icon/area.ico'))
         self.initUI()
 
     def initUI(self):

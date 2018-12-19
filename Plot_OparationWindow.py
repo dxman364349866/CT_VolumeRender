@@ -7,8 +7,8 @@ from PyQt5.QtWidgets import QWidget, \
 from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtCore import Qt
 
-from Operation.Plot_OperationComponent import pltComponent
-from Operation.Plot_RangeSlider import QRangeSlider
+from Plot_OperationComponent import pltComponent
+from Plot_RangeSlider import QRangeSlider
 
 class plotWindow(QWidget):
     OperationPointsingle = pyqtSignal(list)
