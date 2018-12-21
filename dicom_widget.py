@@ -4,10 +4,9 @@ from PyQt5 import QtWidgets, QtCore, QtGui
 from PyQt5.QtWidgets import QLabel,QHBoxLayout
 from PyQt5.QtCore import QPoint, Qt, pyqtSignal
 from PyQt5.QtGui import QPen, QPainter
-import dicom_data as dicom_data
+# import dicom_data as dicom_data
 import numpy as np
 import math
-
 
 class DicomWidget(QLabel):
     """Widget for displaying DICOM data.
@@ -35,7 +34,7 @@ class DicomWidget(QLabel):
         self._image = None
         self._pixmap = None
         self.pixmaps = None
-        self.winSize = [256, 256]
+        self.winSize = [512, 512]
 
         self.volumeShape = self._data.shape
         self.pos = None
@@ -162,11 +161,11 @@ class DicomWidget(QLabel):
         # draw Hriazontal line
         painter.setPen(self.pen1)
         painter.drawPixmap(self.rect(), self._pixmap)
-        painter.drawLine(self.drawCoord[0], 0, self.drawCoord[0], 512)
+        painter.drawLine(self.drawCoord[0], 0, self.drawCoord[0], self.height())
 
         # draw Vertical line
         painter.setPen(self.pen2)
-        painter.drawLine(0, self.drawCoord[1], 512, self.drawCoord[1])
+        painter.drawLine(0, self.drawCoord[1], self.width(), self.drawCoord[1])
 
         pen3.setWidth(3)
         painter.setPen(pen3)

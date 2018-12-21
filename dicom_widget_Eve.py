@@ -20,7 +20,7 @@ class Dicom2Dwindow(QWidget):
         self.initUI()
         self.show()
     def initUI(self):
-        self.setGeometry(0, 0, 300, 300)
+        self.setGeometry(0, 0, 512, 512)
         self.setWindowTitle('Loading...')
 
         self.label = QWidget(self)

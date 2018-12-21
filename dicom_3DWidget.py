@@ -54,8 +54,8 @@ class volumeWindow(QWidget):
             self.vtkWidget.resize(self.width(), self.height())
 
         if self.cutSlider != None:
-            self.cutSlider.GetPoint1Coordinate().SetValue(10, self.height() - 50)
-            self.cutSlider.GetPoint2Coordinate().SetValue(200, self.height() - 50)
+            self.cutSlider.GetPoint1Coordinate().SetValue(20,  10)
+            self.cutSlider.GetPoint2Coordinate().SetValue(200, 10)
         pass
 
     def initUI(self):
@@ -69,6 +69,8 @@ class volumeWindow(QWidget):
 
         self.loadFile(self._filePath)
 
+
+
         #================Draw CoordLine================
         self.lineSource = vtk.vtkLineSource()
         self.targetPoint = vtk.vtkSphereSource()
@@ -78,6 +80,8 @@ class volumeWindow(QWidget):
         self.drawCoordPoint()
         self.initCutPlane()
         self.initCutSlider()
+        self.initText()
+
         # self.initBoxWidget()
         pass
 
@@ -123,6 +127,9 @@ class volumeWindow(QWidget):
         self.incidencePoint.SetCenter(self.drawPoint[0])
         self.targetPoint.SetCenter(self.drawPoint[1])
         self.controlCutPlane(tmpVal, fdiract)
+
+        # Show Distance
+        self.txt.SetInput('Distance:' + str(round(self.getDistance()/10, 2)) + ' cm')
         self.vtkWidget.update()
         pass
 
@@ -137,9 +144,9 @@ class volumeWindow(QWidget):
         pass
 
     def initCutSlider(self):
-        yAxis = self.height() - 50
+        yAxis = 10
         self.cutSlider = As.Atomic_Clicer.SliderRepresentation2D(As)
-        self.CutSliderWidget = As.Atomic_Clicer.ConfigSlider(As, self.cutSlider, "CutDistance",  yAxis)
+        self.CutSliderWidget = As.Atomic_Clicer.ConfigSlider(As, self.cutSlider, "CutDirection",  yAxis)
         self.CutSliderWidget.SetInteractor(self.iren)
         self.CutSliderWidget.EnabledOn()
         self.cureenDistance = self.getDistance()
@@ -168,6 +175,17 @@ class volumeWindow(QWidget):
         self.volumMapper.SetCropping(1)  # 开启3D剪切模式
         self.volumMapper.SetCroppingRegionPlanes(self.boxWidget.GetProp3D().GetBounds())
 
+        pass
+
+    def initText(self):
+        self.txt = vtk.vtkTextActor()
+        self.txt.SetInput("Distance:")
+        self.txtprop = self.txt.GetTextProperty()
+        self.txtprop.SetFontFamilyToArial()
+        self.txtprop.SetFontSize(15)
+        self.txtprop.SetColor(0, 1, 0)
+        self.txt.SetDisplayPosition(20, 35)
+        self.ren.AddActor(self.txt)
         pass
 
     def loadFile(self, path):
@@ -214,14 +232,14 @@ class volumeWindow(QWidget):
         self.colors = vtk.vtkNamedColors()
         self.colors.SetColor("BackGroundcolors", [255, 255, 255, 255])
 
-
         self.ren.SetBackground(self.colors.GetColor3d("BackGroundcolors"))
         self.ren.AddVolume(self.volume)
-
 
         self.iren.Initialize()
 
         pass
+
+
 
     def setOpacityColor(self, valume):
         self.volumcolors.RemoveAllPoints()
@@ -252,7 +270,7 @@ class volumeWindow(QWidget):
 
         actor = vtk.vtkActor()
         actor.SetMapper(mapper)
-        actor.GetProperty().SetLineWidth(4)
+        actor.GetProperty().SetLineWidth(1)
         actor.GetProperty().SetColor(colors.GetColor3d("Peacock"))
         self.ren.AddActor(actor)
 
@@ -263,14 +281,14 @@ class volumeWindow(QWidget):
 
         # Create a TargetPoint
         self.targetPoint.SetCenter(0.0, 0.0, 0.0)
-        self.targetPoint.SetRadius(5.0)
+        self.targetPoint.SetRadius(2.0)
         # 设置球面的细分
         self.targetPoint.SetPhiResolution(10)
         self.targetPoint.SetThetaResolution(10)
 
         # Create a incidencePoint
         self.incidencePoint.SetCenter(0., 0., 0., )
-        self.incidencePoint.SetRadius(5.0)
+        self.incidencePoint.SetRadius(2.0)
         # 设置球面的细分
         self.incidencePoint.SetPhiResolution(10)
         self.incidencePoint.SetThetaResolution(10)
@@ -297,7 +315,7 @@ class volumeWindow(QWidget):
 
 
     def drawFunction(self):
-
+        # get CurentDistance and Director
         self.cureenDistance = self.getDistance()
         self.cureenDirector = self.getDirection()
         # Draw Line

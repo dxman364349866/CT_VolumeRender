@@ -7,8 +7,8 @@ from MultDicomWindowSecond import multDicomWindows
 class TestMainWindow(QMainWindow):
     def __init__(self):
         super(TestMainWindow, self).__init__()
-        width = 512
-        height = 512
+        width = 1024
+        height = 1024
         self.setGeometry(30, 30, width, width)
         self.setWindowTitle('奥菲科医疗')
         self.setWindowIcon(QIcon('../Atomic_Icon/area.ico'))
