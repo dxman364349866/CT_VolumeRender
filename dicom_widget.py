@@ -3,7 +3,7 @@ from __future__ import division
 from PyQt5 import QtWidgets, QtCore, QtGui
 from PyQt5.QtWidgets import QLabel,QHBoxLayout
 from PyQt5.QtCore import QPoint, Qt, pyqtSignal
-from PyQt5.QtGui import QPen, QPainter
+from PyQt5.QtGui import QPen, QPainter, QColor
 # import dicom_data as dicom_data
 import numpy as np
 import math
@@ -83,12 +83,12 @@ class DicomWidget(QLabel):
     def update_image(self):
         if self._data is not None:
             raw_data = self._data#.get_slice(0, 0)
-            # shape = raw_data.shape
+            shape = raw_data.shape
             data = (raw_data - self._low_hu) / self.window_width * 256
             data[data < 0] = 0
             data[data > 255] = 255
             data = data.astype("int8")
-            self._image = QtGui.QImage(data, data.shape[1], data.shape[0], QtGui.QImage.Format_Indexed8)
+            self._image = QtGui.QImage(data, shape[1], shape[0], QtGui.QImage.Format_Indexed8)
             self._image.setColorTable(self._color_table)
         else:
             self._image = None
@@ -180,6 +180,7 @@ class DicomWidget(QLabel):
         painter.drawLine(self.drawCoord[0], self.drawCoord[1], self.drawCoord2[0], self.drawCoord2[1])
 
         pass
+
 
     def getResizeEvent(self, sizeX, sizeY):
         self.resize(sizeX, sizeY)
