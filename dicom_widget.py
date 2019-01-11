@@ -21,8 +21,8 @@ class DicomWidget(QLabel):
         # self._zoom_level = kwargs.get("zoom_level", 0)
         self._data = kwargs.get("data", None)
         # self._scaled_image = None
-        self._low_hu = kwargs.get("low_hu", -1000)
-        self._high_hu = kwargs.get("high_hu", 3000)
+        self._low_hu = kwargs.get("low_hu", -1150)
+        self._high_hu = kwargs.get("high_hu", 3250)
         # self._plane = kwargs.get("plane", dicom_data.AXIAL)
         self._plane = 0
 
@@ -67,16 +67,16 @@ class DicomWidget(QLabel):
 
 
     def wheelEvent(self, event):
-        # up_down = QPoint(event.angleDelta())
-        # if up_down.y() < 0 and self.choiceNum > 0:
-        #     self.choiceNum -= 1
-        #     self._data  = np.stack(self.pixmaps[self.choiceNum], axis= self._paxis)
-        #
-        # elif up_down.y() > 0 and self.choiceNum < self.pixmaps.shape[0]-1:
-        #     self.choiceNum += 1
-        #     self._data = np.stack(self.pixmaps[self.choiceNum], axis= self._paxis)
-        #
-        # self.update_image()
+        up_down = QPoint(event.angleDelta())
+        if up_down.y() < 0 and self.choiceNum > 0:
+            self.choiceNum -= 1
+            self._data  = np.stack(self.pixmaps[self.choiceNum], axis= self._paxis)
+
+        elif up_down.y() > 0 and self.choiceNum < self.pixmaps.shape[0]-1:
+            self.choiceNum += 1
+            self._data = np.stack(self.pixmaps[self.choiceNum], axis= self._paxis)
+
+        self.update_image()
         pass
 
 
@@ -84,7 +84,9 @@ class DicomWidget(QLabel):
         if self._data is not None:
             raw_data = self._data#.get_slice(0, 0)
             shape = raw_data.shape
-            data = (raw_data - self._low_hu) / self.window_width * 256
+            # data = (raw_data - self._low_hu) / self.window_width * 256
+            data = raw_data
+            # data = raw_data
             data[data < 0] = 0
             data[data > 255] = 255
             data = data.astype("int8")
