@@ -331,7 +331,7 @@ class volumeWindow(QWidget):
 
 
 
-# filePath = 'D:/Dicomfile/brian_and_vessel/SE3/'
+# filePath = 'D:/Dicomfile/MT_07/'
 # if __name__ == '__main__':
 #     app = QApplication(sys.argv)
 #     win = volumeWindow(dirPath=filePath)

@@ -1,23 +1,28 @@
 import sys
 import SimpleITK
 import numpy as np
-from PyQt5.QtWidgets import QWidget,QLabel, QApplication, QGridLayout
-from PyQt5.QtGui import QPixmap, QImage, QIcon,qRgb
+from PyQt5.QtWidgets import QWidget, QLabel, QApplication, QGridLayout, QHBoxLayout, QVBoxLayout
+from PyQt5.QtGui import QPixmap, QImage, QIcon, qRgb, QPalette, QColor
 from PyQt5.QtCore import Qt
 
-class DicomAndSegmentWidget(QWidget):
-    def __init__(self):
-        super(DicomAndSegmentWidget, self).__init__()
+class ITKTestThird(QWidget):
+    def __init__(self, **kwargs):
+        super(ITKTestThird, self).__init__()
         self.setGeometry(50, 50, 512, 512)
         self.setWindowIcon(QIcon('../Atomic_Icon/area.ico'))
         self.setWindowTitle('ITK_Test')
+        self._face = kwargs.get('face', 0)
+        self._datas = kwargs.get('datas', 0)
+
         self.initUI()
 
     def initUI(self):
-        self.GLayout = QGridLayout()
+        self.viewLayout = None
         self.ImLable = QLabel(self)
-        self.GLayout.addWidget(self.ImLable)
-        self.setLayout(self.GLayout)
+
+        self.topLable = QLabel(self)
+        self.downLable = QLabel(self)
+        self.ImLable.resize(self.width(), self.height())
 
         self.initDicomWindow()
         pass
@@ -33,9 +38,11 @@ class DicomAndSegmentWidget(QWidget):
         self.imgOriginal = self.imgOriginals[:, :, self.idxSlice]
         self._color_table = [qRgb(i, i, i) for i in range(64)]
         self.datas = SimpleITK.GetArrayFromImage(self.imgOriginals)
-        self.datas = np.stack(self.datas, axis=1)
-        self.resize(self.datas.shape[0], self.datas.shape[1])
 
+        #============================ChangeFaceSize=============================
+
+        self.xSpacing, self.ySpacing, self.zSpacing = self.imgOriginals.GetSpacing()
+        self.initViewWindow()
 
         self.PosXY = [150, 75]
         self.lstSeeds = [(self.PosXY[0], self.PosXY[1])]
@@ -44,6 +51,78 @@ class DicomAndSegmentWidget(QWidget):
 
         # self.showDicomPixMap()
         self.drawSliceArea()
+        self.show()
+        pass
+
+    def initViewWindow(self):
+
+        if self._face == 0:
+            self.viewLayout = QGridLayout(self)
+            self.viewLayout.addWidget(self.ImLable)
+            self.ImLable.setAlignment(Qt.AlignCenter)
+            self.topfaceView()
+        elif self._face == 1:
+            # self.viewLayout = QGridLayout(self)
+            # self.viewLayout.addWidget(self.ImLable)
+            # self.setLayout(self.viewLayout)
+            # self.ImLable.setAlignment(Qt.AlignCenter)
+            self.leftfaceView()
+
+        elif self._face == 2:
+            self.viewLayout = QGridLayout(self)
+            self.viewLayout.addWidget(self.ImLable)
+            self.ImLable.setAlignment(Qt.AlignCenter)
+            self.setLayout(self.viewLayout)
+            self.frontfaceView()
+        pass
+
+    def topfaceView(self):
+        self.faceWindowH = self.faceWindowV = 512
+        tmpPalete = QPalette()
+        tmpPalete.setColor(QPalette.Background, QColor(0, 0, 0))
+        self.setPalette(tmpPalete)
+        pass
+
+    def leftfaceView(self):
+        self.datas = np.rot90(self.datas, -1)
+        self.datas = np.rot90(self.datas,  axes=(0, 2))
+        width = self.datas.shape[0]
+        height = self.datas.shape[1]
+        depth = self.datas.shape[2]
+        self.faceWindowH = max(width, height, depth)
+        self.faceWindowV = self.faceWindowH * self.zSpacing
+
+        # AppendA = np.full((512, 512, 1), 0)
+        # AppendB = np.full((512, 512, 1
+        # ), 0)
+        # AppendA = AppendA.astype(np.int8)
+
+        tmpPalete = QPalette()
+        tmpPalete.setColor(QPalette.Background, QColor(0, 0, 0))
+        self.setPalette(tmpPalete)
+
+
+
+        # AImge = QImage(AppendA, 512, 512, 512*3, QImage.Format_RGB888)
+        # AImge.setColorTable(self._color_table)
+        # Amap = QPixmap.fromImage(AImge)
+        # Amap = Amap.scaled(self.faceWindowH * 2, (self.faceWindowH - self.faceWindowV) / 2)
+        # self.topLable.setPixmap(Amap)
+        # self.downLable.setPixmap(Amap)
+
+        pass
+
+
+    def frontfaceView(self):
+
+        self.datas = np.rot90(self.datas, -1)
+
+        tmpPalete = QPalette()
+        tmpPalete.setColor(QPalette.Background, QColor(0, 0, 0))
+        self.setPalette(tmpPalete)
+
+        self.faceWindowH = 512
+        self.faceWindowV = self.faceWindowH * self.zSpacing
         pass
 
     def showDicomPixMap(self):
@@ -59,7 +138,12 @@ class DicomAndSegmentWidget(QWidget):
         ImaImag.setColorTable(self._color_table)
         pixmap = QPixmap.fromImage(ImaImag)
 
+        # paletter = QPalette(self)
+        pixmap = pixmap.scaled(self.faceWindowH, self.faceWindowV)
+
+
         self.ImLable.setPixmap(pixmap)
+
         pass
 
     def drawSliceArea(self):
@@ -73,12 +157,23 @@ class DicomAndSegmentWidget(QWidget):
                                                            )
         self.imgWhiteMatterNoHoles = SimpleITK.VotingBinaryHoleFilling(image1=self.imgWhiteMatter,
                                                                        radius=[2] * 3,
-                                                                       majorityThreshold=1,
+                                                                       majorityThreshold=50,
                                                                        backgroundValue=0,
                                                                        foregroundValue=1)
 
-        tmpImage = SimpleITK.LabelOverlay(self.imgOriginal, SimpleITK.LabelContour(self.imgWhiteMatterNoHoles))
+        # tmpImage = SimpleITK.LabelOverlay(self.imgOriginal, SimpleITK.LabelContour(self.imgWhiteMatterNoHoles))
+        tmpImage = SimpleITK.LabelOverlay(self.imgOriginal, self.imgWhiteMatterNoHoles)
+        # tmpImage = SimpleITK.LabelOverlay(self.imgOriginal, self.imgWhiteMatterNoHoles)
+
         MyNarray = SimpleITK.GetArrayFromImage(tmpImage)
+
+        # print(len(MyNarray))
+        # print('---------------------------------------------------------')
+        # wirteArray = SimpleITK.GetArrayFromImage(self.imgWhiteMatterNoHoles)
+        # np.savetxt('D:/Dicomfile/WriteArray/WTTest.txt', wirteArray)
+        #
+        # print(len(wirteArray))
+
 
         height = MyNarray.shape[0]
         width = MyNarray.shape[1]
@@ -86,11 +181,17 @@ class DicomAndSegmentWidget(QWidget):
         MyNarray = MyNarray.astype(np.int8)
 
         ImaImag = QImage(MyNarray, width, height, width*changne, QImage.Format_RGB888)
+
         pixmap = QPixmap.fromImage(ImaImag)
+        pixmap = pixmap.scaled(self.faceWindowH, self.faceWindowV)
+
+
 
         self.ImLable.setPixmap(pixmap)
         self.ImLable.mouseMoveEvent = self.labelMouseMoveEvent
 
+        # self.replaceViewPosition()
+        # print(self.ImLable.size())
         pass
 
     def labelMouseMoveEvent(self, event):
@@ -101,7 +202,17 @@ class DicomAndSegmentWidget(QWidget):
             self.PosXY[1] = yAxis
             self.lstSeeds = [(self.PosXY[0], self.PosXY[1])]
             self.drawSliceArea()
-            # print(xAxis, yAxis)
+            print(xAxis, yAxis)
+        pass
+
+    def getResizeEvent(self, sizeX, sizeY):
+        self.resize(sizeX, sizeY)
+        pass
+
+    def resizeEvent(self, QResizeEvent):
+        # self.resize(self.width(), self.width())
+        self.ImLable.move(self.width()/2 - self.ImLable.width()/2, self.height()/2 - self.ImLable.width()/2)
+        print(self.ImLable.pos())
         pass
 
     def wheelEvent(self, event):
@@ -113,9 +224,6 @@ class DicomAndSegmentWidget(QWidget):
         elif angleY < 0:
             self.idxSlice -= 1
 
-        # self.imgOriginal = self.imgOriginals[:, :, self.idxSlice]
-
-        # self.showDicomPixMap()
         self.drawSliceArea()
 
         pass
@@ -123,6 +231,5 @@ class DicomAndSegmentWidget(QWidget):
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    win = DicomAndSegmentWidget()
-    win.show()
+    win = ITKTestThird()
     sys.exit(app.exec_())
