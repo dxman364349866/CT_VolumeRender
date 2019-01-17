@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import QLabel,QHBoxLayout
 from PyQt5.QtCore import QPoint, Qt, pyqtSignal
 from PyQt5.QtGui import QPen, QPainter, QColor
 # import dicom_data as dicom_data
+import SimpleITK
 import numpy as np
 import math
 
@@ -14,7 +15,7 @@ class DicomWidget(QLabel):
     Drawsignle = QtCore.pyqtSignal(list)
     Targetsignle = QtCore.pyqtSignal(list)
 
-    def __init__(self,parent=None, **kwargs):
+    def __init__(self, parent=None, **kwargs):
         # Qt initialization
         super(DicomWidget, self).__init__(parent)
 
@@ -24,15 +25,16 @@ class DicomWidget(QLabel):
         self._low_hu = kwargs.get("low_hu", -1150)
         self._high_hu = kwargs.get("high_hu", 3250)
         # self._plane = kwargs.get("plane", dicom_data.AXIAL)
+        self._regionGrowing = kwargs.get('region_growing', 0)
         self._plane = 0
 
         self._slice = kwargs.get("slice", 0)
         self._color_table = kwargs.get("color_table", [QtGui.qRgb(i, i, i) for i in range(256)])
         self._paxis = kwargs.get('axis', 0)
-
-
         self._image = None
         self._pixmap = None
+#=============================================================================================
+
         self.pixmaps = None
         self.winSize = [512, 512]
 
@@ -42,8 +44,11 @@ class DicomWidget(QLabel):
         self.pen1 = QPen(Qt.blue, 1)
         self.pen2 = QPen(Qt.green, 1)
         self.distancLine = QPen(Qt.white, 1)
-
-
+#=============================== region growing variable ==================================================
+        self.regionPos = [0, 0]
+        self.lstSeeds = [(self.regionPos[0], self.regionPos[1])]
+        self.LowAndUpper = [100, 300]
+#================================================================================================
         self.hLayout = QHBoxLayout(self)
 
         self.setScaledContents(True)
@@ -53,10 +58,21 @@ class DicomWidget(QLabel):
         self.TmpRect = QtCore.QRect(0, 0, 512, 512)
         self.choiceNum = 0
 
+    #==============================确定是否决定这个选区================================
+        self.decideRegion = False
+    #=================================================================================
+
         self.setLayout(self.hLayout)
 
-        self.update_image()
+        self.decideOperation()
+        # self.update_image()
 
+    def decideOperation(self):
+        if self._regionGrowing == 0:
+            self.update_image()
+        elif self._regionGrowing == 1:
+            self.updata_regeionGrowing()
+        pass
 
     def choiceNumber(self, number):
         if number >= 0 and number < self.pixmaps.shape[0]-1:
@@ -68,15 +84,75 @@ class DicomWidget(QLabel):
 
     def wheelEvent(self, event):
         up_down = QPoint(event.angleDelta())
-        if up_down.y() < 0 and self.choiceNum > 0:
-            self.choiceNum -= 1
-            self._data  = np.stack(self.pixmaps[self.choiceNum], axis= self._paxis)
 
-        elif up_down.y() > 0 and self.choiceNum < self.pixmaps.shape[0]-1:
-            self.choiceNum += 1
-            self._data = np.stack(self.pixmaps[self.choiceNum], axis= self._paxis)
+#===============================Normal operation============================================
+        if self._regionGrowing == False:
+            if up_down.y() < 0 and self.choiceNum > 0:
+                self.choiceNum -= 1
+                self._data  = np.stack(self.pixmaps[self.choiceNum], axis= self._paxis)
 
-        self.update_image()
+            elif up_down.y() > 0 and self.choiceNum < self.pixmaps.shape[0]-1:
+                self.choiceNum += 1
+                self._data = np.stack(self.pixmaps[self.choiceNum], axis= self._paxis)
+
+            self.update_image()
+#===========================================================================================
+
+#=================================regionGrowing operation===================================
+        elif self._regionGrowing == True:
+            if up_down.y() < 0:
+                self.LowAndUpper[0] += 1
+                self.LowAndUpper[1] -= 1
+            elif up_down.y() > 0:
+                self.LowAndUpper[0] -= 1
+                self.LowAndUpper[1] += 1
+            print(self.LowAndUpper)
+
+            self.updata_regeionGrowing()
+#===========================================================================================
+        pass
+
+
+    def updata_regeionGrowing(self):
+        if self._data is None:
+            print('the data is None')
+            return
+        if self._data is not None:
+            self.imgOriginal = self._data
+            self.imgWhiteMatter = SimpleITK.ConnectedThreshold(image1=self.imgOriginal,
+                                                               seedList=self.lstSeeds,
+                                                               lower=self.LowAndUpper[0],
+                                                               upper=self.LowAndUpper[1],
+                                                               replaceValue=1,
+                                                               )
+
+            self.imgWhiteMatterNoHoles = SimpleITK.VotingBinaryHoleFilling(image1=self.imgWhiteMatter,
+                                                                           radius=[2] * 3,
+                                                                           majorityThreshold=1,
+                                                                           backgroundValue=0,
+                                                                           foregroundValue=1)
+
+            tmpImage = None
+            if self.isChoiceRegion == False:
+                tmpImage = SimpleITK.LabelOverlay(self.imgOriginal, SimpleITK.LabelContour(self.imgWhiteMatterNoHoles))
+            elif self.isChoiceRegion == True:
+                tmpImage = SimpleITK.LabelOverlay(self.imgOriginal, self.imgWhiteMatterNoHoles)
+
+            tmpNarray = SimpleITK.GetArrayFromImage(tmpImage)
+
+#================== h, w, c======================================
+            height = tmpNarray.shape[0]
+            width = tmpNarray.shape[1]
+            channels = tmpNarray.shape[2]
+            bytesPerline = channels * width
+#================================================================
+            tmpNarray = tmpNarray.astype("int8")
+            self._image = QtGui.QImage(tmpNarray, width, height, QtGui.QImage.Format_Indexed8)
+            self._image.setColorTable(self._color_table)
+
+            pixmap = QtGui.QPixmap.fromImage(self._image)
+            self.setPixmap(pixmap)
+
         pass
 
 
@@ -84,7 +160,7 @@ class DicomWidget(QLabel):
         if self._data is not None:
             raw_data = self._data#.get_slice(0, 0)
             shape = raw_data.shape
-            # data = (raw_data - self._low_hu) / self.window_width * 256
+            data = (raw_data - self._low_hu) / self.window_width * 256
             data = raw_data
             # data = raw_data
             data[data < 0] = 0

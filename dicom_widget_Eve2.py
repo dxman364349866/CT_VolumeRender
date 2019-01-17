@@ -24,40 +24,6 @@ class Dicom2Dwindow(QWidget):
 
     def initUI2(self):
         pass
-        # self.reader = vtk.vtkDICOMImageReader()
-        # self.reader.SetDirectoryName(self._path)
-        # self.reader.Update()
-        #
-        # xMin, xMax, yMin, yMax, zMin, zMax = self.reader.GetDataExtent()
-        # xSpacing, ySpacing, zSpacing = self.reader.GetOutput().GetSpacing()
-        # x0, y0, z0 = self.reader.GetOutput().GetOrigin()
-        #
-        #
-        # center = [x0 + xSpacing * 0.5 * (xMin + xMax),
-        #           y0 + ySpacing * 0.5 * (yMin + yMax),
-        #           z0 + zSpacing * 0.5 * (zMin + zMax)]
-        #
-        # print(xSpacing, ySpacing, zSpacing)
-        # print(x0, y0, z0)
-        # print((xMin + xMax),(yMin + yMax),(zMin + zMax))
-        # print(center)
-        #
-        # self.axial = vtk.vtkMatrix4x4()
-        # self.axial.DeepCopy((1, 0, 0, center[0],
-        #                 0, 1, 0, center[1],
-        #                 0, 0, 1, center[2],
-        #                 0, 0, 0, 1))
-        # self.coronal = vtk.vtkMatrix4x4()
-        # self.coronal.DeepCopy((1, 0, 0, center[0],
-        #                   0, 0, 1, center[1],
-        #                   0, -1, 0, center[2],
-        #                   0, 0, 0, 1))
-        #
-        # self.sagittal = vtk.vtkMatrix4x4()
-        # self.sagittal.DeepCopy((0, 0, -1, center[0],
-        #                    1, 0, 0, center[1],
-        #                    0, -1, 0, center[2],
-        #                    0, 0, 0, 1))
 
 
 
@@ -142,7 +108,7 @@ class Dicom2Dwindow(QWidget):
             pass
 
     #=====================================Get DicomWidget =================================================
-        self.pix_label = DicomWidget(self, data=np.stack(self.datas[0], axis=self._axis), axis=self._axis)
+        self.pix_label = DicomWidget(self, data=np.stack(self.datas[0], axis=self._axis), axis=self._axis, region_growing = 0)
         self.pix_label.pixmaps = self.datas
         self.pix_label.winSize[0] = self.minlevel
         self.pix_label.winSize[1] = self.maxlevel

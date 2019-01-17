@@ -1,9 +1,11 @@
 import sys
 import SimpleITK
 import numpy as np
+from dicom_data import DicomData
 from PyQt5.QtWidgets import QWidget, QLabel, QApplication, QGridLayout, QHBoxLayout, QVBoxLayout
 from PyQt5.QtGui import QPixmap, QImage, QIcon, qRgb, QPalette, QColor
 from PyQt5.QtCore import Qt
+
 
 class ITKTestThird(QWidget):
     def __init__(self, **kwargs):
@@ -13,6 +15,7 @@ class ITKTestThird(QWidget):
         self.setWindowTitle('ITK_Test')
         self._face = kwargs.get('face', 0)
         self._datas = kwargs.get('datas', 0)
+        self._Spacing = kwargs.get('spacing', None)
 
         self.initUI()
 
@@ -28,27 +31,29 @@ class ITKTestThird(QWidget):
         pass
 
     def initDicomWindow(self):
-        pathDicom = "D:/Dicomfile/MT_07/"
-        self.idxSlice = 50
-        self.reader = SimpleITK.ImageSeriesReader()
-        filenamesDICOM = self.reader.GetGDCMSeriesFileNames(pathDicom)
+        # pathDicom = "D:/Dicomfile/MT_07/"
+        # self.idxSlice = 50
+        # self.reader = SimpleITK.ImageSeriesReader()
+        # filenamesDICOM = self.reader.GetGDCMSeriesFileNames(pathDicom)
 
-        self.reader.SetFileNames(filenamesDICOM)
-        self.imgOriginals = self.reader.Execute()
-        self.imgOriginal = self.imgOriginals[:, :, self.idxSlice]
+        # self.reader.SetFileNames(filenamesDICOM)
+        # self.imgOriginals = self.reader.Execute()
+        # self.imgOriginal = self.imgOriginals[:, :, self.idxSlice]
         self._color_table = [qRgb(i, i, i) for i in range(64)]
-        self.datas = SimpleITK.GetArrayFromImage(self.imgOriginals)
+        self.datas = self._datas
+        # self.datas = SimpleITK.GetArrayFromImage(self.imgOriginals)
 
         #============================ChangeFaceSize=============================
 
-        self.xSpacing, self.ySpacing, self.zSpacing = self.imgOriginals.GetSpacing()
+        self.xSpacing, self.ySpacing, self.zSpacing = self._Spacing
+
         self.initViewWindow()
 
         self.PosXY = [150, 75]
         self.lstSeeds = [(self.PosXY[0], self.PosXY[1])]
         self.LowAndUpper = [100, 300]
         self._axis = 0
-
+        self.idxSlice = 50
         # self.showDicomPixMap()
         self.drawSliceArea()
         self.show()
@@ -62,10 +67,6 @@ class ITKTestThird(QWidget):
             self.ImLable.setAlignment(Qt.AlignCenter)
             self.topfaceView()
         elif self._face == 1:
-            # self.viewLayout = QGridLayout(self)
-            # self.viewLayout.addWidget(self.ImLable)
-            # self.setLayout(self.viewLayout)
-            # self.ImLable.setAlignment(Qt.AlignCenter)
             self.leftfaceView()
 
         elif self._face == 2:
@@ -92,23 +93,11 @@ class ITKTestThird(QWidget):
         self.faceWindowH = max(width, height, depth)
         self.faceWindowV = self.faceWindowH * self.zSpacing
 
-        # AppendA = np.full((512, 512, 1), 0)
-        # AppendB = np.full((512, 512, 1
-        # ), 0)
-        # AppendA = AppendA.astype(np.int8)
 
         tmpPalete = QPalette()
         tmpPalete.setColor(QPalette.Background, QColor(0, 0, 0))
         self.setPalette(tmpPalete)
 
-
-
-        # AImge = QImage(AppendA, 512, 512, 512*3, QImage.Format_RGB888)
-        # AImge.setColorTable(self._color_table)
-        # Amap = QPixmap.fromImage(AImge)
-        # Amap = Amap.scaled(self.faceWindowH * 2, (self.faceWindowH - self.faceWindowV) / 2)
-        # self.topLable.setPixmap(Amap)
-        # self.downLable.setPixmap(Amap)
 
         pass
 
@@ -147,7 +136,6 @@ class ITKTestThird(QWidget):
         pass
 
     def drawSliceArea(self):
-
         self.imgOriginal = SimpleITK.GetImageFromArray(self.datas[self.idxSlice])
         self.imgWhiteMatter = SimpleITK.ConnectedThreshold(image1=self.imgOriginal,
                                                            seedList=self.lstSeeds,
@@ -161,18 +149,13 @@ class ITKTestThird(QWidget):
                                                                        backgroundValue=0,
                                                                        foregroundValue=1)
 
-        # tmpImage = SimpleITK.LabelOverlay(self.imgOriginal, SimpleITK.LabelContour(self.imgWhiteMatterNoHoles))
-        tmpImage = SimpleITK.LabelOverlay(self.imgOriginal, self.imgWhiteMatterNoHoles)
+        tmpImage = SimpleITK.LabelOverlay(self.imgOriginal, SimpleITK.LabelContour(self.imgWhiteMatterNoHoles))
+        # tmpImage = SimpleITK.LabelOverlay(self.imgOriginal, self.imgWhiteMatterNoHoles)
         # tmpImage = SimpleITK.LabelOverlay(self.imgOriginal, self.imgWhiteMatterNoHoles)
 
         MyNarray = SimpleITK.GetArrayFromImage(tmpImage)
 
-        # print(len(MyNarray))
-        # print('---------------------------------------------------------')
-        # wirteArray = SimpleITK.GetArrayFromImage(self.imgWhiteMatterNoHoles)
-        # np.savetxt('D:/Dicomfile/WriteArray/WTTest.txt', wirteArray)
-        #
-        # print(len(wirteArray))
+
 
 
         height = MyNarray.shape[0]
@@ -229,7 +212,17 @@ class ITKTestThird(QWidget):
         pass
 
 
+pathDicom = "D:/Dicomfile/MT_07/"
+idxSlice = 50
+reader = SimpleITK.ImageSeriesReader()
+filenamesDICOM = reader.GetGDCMSeriesFileNames(pathDicom)
+
+reader.SetFileNames(filenamesDICOM)
+imgOriginals = reader.Execute()
+datas = SimpleITK.GetArrayFromImage(imgOriginals)
+Spacing = imgOriginals.GetSpacing()
+
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    win = ITKTestThird()
+    win = ITKTestThird(face=1, datas= datas, spacing=Spacing)
     sys.exit(app.exec_())
