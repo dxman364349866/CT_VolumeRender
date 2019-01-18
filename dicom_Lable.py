@@ -15,21 +15,25 @@ class dicom_2DLable(QLabel):
         self._datas = kwargs.get('datas', None)
         self._low_hu = kwargs.get("low_hu", -1150)
         self._high_hu = kwargs.get("high_hu", 3250)
+        self._spacing = kwargs.get('spacing', None)
         self._color_table = kwargs.get("color_table", [qRgb(i, i, i) for i in range(256)])
         self._image = None
 
-        self.viewPlane = 1
 
         self.initParameter()
         self.initUI()
 
     def initParameter(self):
+        #===============ChoicePlane
+        self.viewPlane = 1
+        self.faceWindowH = self.faceWindowV = 512
+
         self.setGeometry(QRect(0, 0, 512, 512))
         self.operationMod = 1
         self.PosXY = [229, 309]
         self.lstSeeds = [(self.PosXY[0], self.PosXY[1])]
         self.LowAndUpper = [100, 500]
-        self.idxSlice = 50
+        self.idxSlice = 150
 
         pass
 
@@ -70,10 +74,21 @@ class dicom_2DLable(QLabel):
 
     def displayTopPlane(self):
         datas = self._datas.copy()
-        datas = np.rot90(datas, -1)
-        self._data = datas[150]
+        print(datas.shape)
+        width = datas.shape[0]
+        height = datas.shape[1]
+        depth = datas.shape[2]
+
+        datas = np.rot90(datas, axes=(1, 0))
+        self._data = datas[self.idxSlice]
         self.update_image()
-        self.resize(512, 200)
+        self.faceWindowH = max(width, height, depth)
+        self.faceWindowV = self.faceWindowH * self._spacing[2]
+
+        tmpPalete = QPalette()
+        tmpPalete.setColor(QPalette.Background, QColor(0, 0, 0))
+        self.setPalette(tmpPalete)
+
         pass
 
     def displayLeftPlane(self):
@@ -118,7 +133,7 @@ class dicom_2DLable(QLabel):
         pass
 
     def drawGrowingArea(self):
-        self.imgOriginal = SimpleITK.GetImageFromArray(self._datas[50])
+        self.imgOriginal = SimpleITK.GetImageFromArray(self._datas[self.idxSlice])
         self.imgWhiteMatter = SimpleITK.ConnectedThreshold(image1=self.imgOriginal,
                                                            seedList=self.lstSeeds,
                                                            lower=self.LowAndUpper[0],
@@ -144,7 +159,7 @@ class dicom_2DLable(QLabel):
             shape = raw_data.shape
             tmpImage = None
             if len(shape) < 3:
-                # data = (raw_data - self._low_hu) / self.window_width * 256
+                data = (raw_data * 20) / self.window_width * 256
                 data = raw_data
                 data[data < 0] = 0
                 data[data > 255] = 255
@@ -152,10 +167,10 @@ class dicom_2DLable(QLabel):
                 tmpImage = QImage(data, shape[0], shape[1], QImage.Format_Indexed8)
                 tmpImage.setColorTable(self._color_table)
             elif len(shape) == 3:
-                # data = (raw_data - self._low_hu) / self.window_width * 256
+                data = (raw_data - self._low_hu) / self.window_width * 256
                 data = raw_data
                 data = data.astype(np.int8)
-                tmpImage = QImage(data, shape[0], shape[1], shape[0]*shape[2], QImage.Format_RGB888)
+                tmpImage = QImage(data, shape[1], shape[0], shape[1]*shape[2], QImage.Format_RGB888)
             self._image = tmpImage
         else:
             self._image = None
@@ -167,8 +182,6 @@ class dicom_2DLable(QLabel):
     def update_pixmap(self):
         if self._image is not None:
             pixmap = QPixmap.fromImage(self._image)
-            # self._pixmap = pixmap
-
             self.setPixmap(pixmap)
             # self.resize(pixmap.width(), pixmap.height())
             # self.resize(512, 512)
@@ -187,6 +200,9 @@ class dicom_2DLable(QLabel):
 
 
 pathDicom = "D:/Dicomfile/MT_07/"
+
+vdata, spacing = DicomData.from_files(pathDicom)
+
 reader = SimpleITK.ImageSeriesReader()
 filenamesDICOM = reader.GetGDCMSeriesFileNames(pathDicom)
 reader.SetFileNames(filenamesDICOM)
@@ -195,7 +211,7 @@ datas = np.array(SimpleITK.GetArrayFromImage(imgOriginals))
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    win = dicom_2DLable(datas=datas, data= datas[50])
+    win = dicom_2DLable(datas=datas, data= datas[50],spacing= spacing)
     win.show()
     sys.exit(app.exec_())
 

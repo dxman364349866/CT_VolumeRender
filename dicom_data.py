@@ -27,6 +27,7 @@ class DicomData(object):
         data = []
         modality = None
         DicomFiles = []
+        spacing = [0, 0, 0]
 
         DicomFiles = [pydicom.read_file(files + '/' + s) for s in os.listdir(files)]
         DicomFiles.sort(key=lambda x : int(x.InstanceNumber))
@@ -35,8 +36,20 @@ class DicomData(object):
         for file in DicomFiles:
             data.append(np.array(file.pixel_array))
 
+        spacing[0] = float(DicomFiles[0].PixelSpacing[0])
+        spacing[1] = float(DicomFiles[0].PixelSpacing[1])
+        spacing[2] = float(DicomFiles[0].SpacingBetweenSlices)
+
+        # print('\n'.join(dir(DicomFiles[0])))
+        # print('----------------------------------------')
+        # print(DicomFiles[0].SpacingBetweenSlices)
+        # print('----------------------------------------')
+        # print(DicomFiles[0].PixelSpacing)
+        # print(DicomFiles[0].SliceThickness)
+        # print(spacing)
+
         returnData = np.array(data)
-        return returnData
+        return returnData, spacing
 
     @classmethod
     def _read_pixel_data(cls, f):
