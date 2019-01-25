@@ -1,6 +1,9 @@
 import sys
 import SimpleITK
-from PyQt5.QtWidgets import  QWidget, QApplication, QGridLayout, QMdiSubWindow, QHBoxLayout, QVBoxLayout,QSplitter
+from PyQt5.QtWidgets import  QWidget, QApplication, QGridLayout, QMdiSubWindow, QHBoxLayout, \
+    QVBoxLayout, QSplitter
+from PyQt5.QtGui import QPalette
+from PyQt5.QtCore import Qt
 from dicom_WidgetAndArea import dicomImage2DdisplayWidget
 
 class dicom_widgetEve(QWidget):
@@ -23,13 +26,19 @@ class dicom_widgetEve(QWidget):
         Spacing = imgOriginals.GetSpacing()
         #=================================================================================
 
-
+        tmpPalete = QPalette()
+        tmpPalete.setColor(QPalette.Background, Qt.black)
+        self.setPalette(tmpPalete)
 
         self.GLayout = QGridLayout(self)
         self.dicom2D = dicomImage2DdisplayWidget(face=0, datas=datas, spacing=Spacing)
-        print(self.dicom2D)
         self.GLayout.addWidget(self.dicom2D)
         self.setLayout(self.GLayout)
+        pass
+
+    def resizeEvent(self, QResizeEvent):
+        # print('\n'.join(dir(QResizeEvent)))
+        self.dicom2D.getResizeEvent(QResizeEvent.size().width(), QResizeEvent.size().height())
         pass
 
 

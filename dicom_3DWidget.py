@@ -331,9 +331,9 @@ class volumeWindow(QWidget):
 
 
 
-# filePath = 'D:/Dicomfile/MT_07/'
-# if __name__ == '__main__':
-#     app = QApplication(sys.argv)
-#     win = volumeWindow(dirPath=filePath)
-#     win.show()
-#     sys.exit(app.exec_())
+filePath = 'D:/Dicomfile/MT_07/'
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    win = volumeWindow(dirPath=filePath)
+    win.show()
+    sys.exit(app.exec_())

@@ -1,13 +1,21 @@
 import sys
+import math
 import SimpleITK
 import numpy as np
 from dicom_data import DicomData
 from PyQt5.QtWidgets import QWidget, QLabel, QApplication, QGridLayout, \
-    QHBoxLayout, QVBoxLayout, QPushButton, QComboBox, QScrollBar
+    QHBoxLayout, QVBoxLayout, QPushButton, QComboBox, QScrollBar, QBoxLayout, \
+    QDialogButtonBox, QGroupBox
 from PyQt5.QtGui import QPixmap, QImage, QIcon, qRgb, QPalette, QColor
+from PyQt5.QtCore import QRect, QPropertyAnimation, QPointF, pyqtProperty
 from Plot_RangeSlider import QRangeSlider
 from PyQt5.QtCore import Qt
 
+import cgitb
+
+# ==解决pyqt5异常只要进入事件循环,程序就崩溃,而没有任何提示==
+cgitb.enable(format='text')
+#=========================================================
 
 class dicomImage2DdisplayWidget(QWidget):
     def __init__(self, **kwargs):
@@ -26,6 +34,7 @@ class dicomImage2DdisplayWidget(QWidget):
 
         self.viewLayout = None
         self.imLable = QLabel(self)
+        self.imLable.setScaledContents(True)
         self.imData = None
 
         self.topLable = QLabel(self)
@@ -48,7 +57,8 @@ class dicomImage2DdisplayWidget(QWidget):
         #============================OperationMod===============================
         self.OperationMod = 0
         self.faceList = ['MainFace', 'LeftFace', 'FrontFace']
-        self.beforFaceName = self.faceList[self._face]
+
+        self.currentFace = self.faceList[self._face]
         #============================RegionGrowingParameter=====================
         self.PosXY = [150, 75]
         self.lstSeeds = [(self.PosXY[0], self.PosXY[1])]
@@ -65,6 +75,7 @@ class dicomImage2DdisplayWidget(QWidget):
         pass
 
     def initOperationButton(self):
+
         self.faceCombox = QComboBox(self)
         self.faceCombox.addItem(self.faceList[0])
         self.faceCombox.addItem(self.faceList[1])
@@ -80,22 +91,86 @@ class dicomImage2DdisplayWidget(QWidget):
         self.modCombox.activated[str].connect(self.mod_Choice)
         self.modCombox.move((self.width() - self.faceCombox.width()-self.modCombox.width()), 0)
 
-        self.sBar = QScrollBar(Qt.Horizontal, self)
-        self.sBar.setGeometry(0, 52, 488, 10)
-        self.sBar.setMaximum(255)
-        self.sBar.sliderMoved.connect(self.sliderval)
+        self.lowHusBar = QScrollBar(Qt.Horizontal, self)
+        self.lowHusBar.setGeometry(0, 52, 488, 5)
+        self.lowHusBar.setMaximum(3250)
+        self.lowHusBar.setMinimum(-1150)
+        self.lowHusBar.setValue(0)
+        self.lowHusBar.sliderMoved.connect(self.sliderval)
 
-        self.sBar2 = QScrollBar(Qt.Horizontal,self)
-        self.sBar2.setGeometry(0, 40, 488, 10)
-        self.sBar2.setMaximum(255)
-        self.sBar2.sliderMoved.connect(self.sliderval)
+        self.heighHusBar = QScrollBar(Qt.Horizontal, self)
+        self.heighHusBar.setGeometry(0, 40, 488, 5)
+        self.heighHusBar.setMaximum(3250)
+        self.heighHusBar.setMinimum(-1150)
+        self.heighHusBar.setValue(0)
+        self.heighHusBar.sliderMoved.connect(self.sliderval)
 
+        self.BaseBoxLayout = QBoxLayout(QBoxLayout.TopToBottom)
+        self.BaseBoxLayout.addWidget(self.heighHusBar, 0)
+        self.BaseBoxLayout.addWidget(self.lowHusBar, 0)
+        self.BaseBoxLayout.setAlignment(Qt.AlignTop)
 
+        self.secondBoxLayout = QBoxLayout(QBoxLayout.LeftToRight)
+        self.secondBoxLayout.addLayout(self.BaseBoxLayout)
+        self.secondBoxLayout.addWidget(self.modCombox)
+        self.secondBoxLayout.addWidget(self.faceCombox)
+        self.secondBoxLayout.setAlignment(Qt.AlignTop)
+
+        self.groupbox = QGroupBox(self)
+        self.groupbox.setGeometry(32, -64, 512, 64)
+        self.groupbox.setLayout(self.secondBoxLayout)
+
+        self.showButton = QPushButton(self)
+        self.showButton.setGeometry(0, 0, 16, 16)
+        self.showButton.clicked.connect(self.playAnimation)
+
+        # self.imLable.setAlignment(Qt.AlignCenter)
+
+        self.initAnimation()
+        pass
+
+    def setGroup_pos(self, apos):
+        self.groupbox.move(apos.x(), apos.y())
+        pass
+
+    def initAnimation(self):
+        self.isBoardshow = False
+        xAxis = self.groupbox.pos().x()
+        yAxis = self.groupbox.height()
+
+        self.groupBoxAnim = QPropertyAnimation(self, b'pos')
+        self.groupBoxAnim.setDuration(1000)
+        self.groupBoxAnim.setStartValue(QPointF(xAxis, -yAxis))
+        # self.anim.setKeyValueAt(0.5, QPointF(0, 10))
+        # self.anim.setKeyValueAt(0.8, QPointF(0, 80))
+        self.groupBoxAnim.setEndValue(QPointF(xAxis, 0))
+
+        self.reverGroupBoxAnim = QPropertyAnimation(self, b'pos')
+        self.reverGroupBoxAnim.setDuration(1000)
+        self.reverGroupBoxAnim.setStartValue(QPointF(xAxis, 0))
+        self.reverGroupBoxAnim.setEndValue(QPointF(xAxis, -yAxis))
 
         pass
 
+    def playAnimation(self):
+        print('-----Play-----')
+        if self.isBoardshow == False:
+            self.reverGroupBoxAnim.stop()
+            self.groupBoxAnim.start()
+            ptest = True
+        elif self.isBoardshow == True:
+            self.groupBoxAnim.stop()
+            self.reverGroupBoxAnim.start()
+        pass
+
+    pos = pyqtProperty(QPointF, fset=setGroup_pos)
+
     def sliderval(self):
-        print(self.sBar.value(), self.sBar2.value())
+        self._low_hu = self.lowHusBar.value()
+        self._high_hu = self.heighHusBar.value()
+
+        self.choiceDisplayMod()
+        # print(self.sBar.value(), self.sBar2.value())
         pass
 
     def mod_Choice(self, event):
@@ -108,14 +183,31 @@ class dicomImage2DdisplayWidget(QWidget):
         self.choiceOpreationMod()
         pass
 
+    def initDisplayfacePlane(self):
+        if self._face == 0:
+            self.topfaceView()
+        elif self._face == 1:
+            self.leftfaceView()
+        elif self._face == 2:
+            self.frontfaceView()
+        pass
+
     def item_Choice(self, event):
         if event == self.faceList[0]:
             self.topfaceView()
+            self.currentFace = self.faceList[0]
+            print('main view')
         elif event == self.faceList[1]:
             self.leftfaceView()
+            self.currentFace = self.faceList[1]
+            print('left view')
         elif event == self.faceList[2]:
             self.frontfaceView()
+            self.currentFace = self.faceList[2]
+            print('front view')
+
         self.choiceOpreationMod()
+        self.getResizeEvent(self.width(), self.height())
         pass
 
     #==========================MakeSureDisplayMod=============================
@@ -137,19 +229,12 @@ class dicomImage2DdisplayWidget(QWidget):
         self.choiceDisplayMod()
         pass
 
-    def initDisplayfacePlane(self):
-        if self._face == 0:
-            self.topfaceView()
-        elif self._face == 1:
-            self.leftfaceView()
-        elif self._face == 2:
-            self.frontfaceView()
-        pass
+
 
     def topfaceView(self):
         self.datas = self._datas.copy()
         self.idxSlicelimt = self.datas.shape[0]
-        self.faceWindowH = self.faceWindowV = 512
+        self.faceWindowH = self.faceWindowV = self.width()
         tmpPalete = QPalette()
         tmpPalete.setColor(QPalette.Background, QColor(0, 0, 0))
         self.setPalette(tmpPalete)
@@ -160,6 +245,7 @@ class dicomImage2DdisplayWidget(QWidget):
         self.datas = np.rot90(self.datas, -1)
         self.datas = np.rot90(self.datas,  axes=(0, 2))
         self.idxSlicelimt = self.datas.shape[0]
+
         width = self.datas.shape[0]
         height = self.datas.shape[1]
         depth = self.datas.shape[2]
@@ -175,11 +261,16 @@ class dicomImage2DdisplayWidget(QWidget):
         self.datas = self._datas.copy()
         self.datas = np.rot90(self.datas, -1)
         self.idxSlicelimt = self.datas.shape[0]
+
+        width = self.datas.shape[0]
+        height = self.datas.shape[1]
+        depth = self.datas.shape[2]
+        self.faceWindowH = max(width, height, depth)
+        self.faceWindowV = self.faceWindowH * self.zSpacing
+
         tmpPalete = QPalette()
         tmpPalete.setColor(QPalette.Background, QColor(0, 0, 0))
         self.setPalette(tmpPalete)
-        self.faceWindowH = 512
-        self.faceWindowV = self.faceWindowH * self.zSpacing
         pass
 
     def drawNomralArea(self):
@@ -226,6 +317,7 @@ class dicomImage2DdisplayWidget(QWidget):
                 data = raw_data
                 #=================用于调节对比度的方法=======================
                 # data = (raw_data - self._low_hu) / self.window_width * 256
+                # print('---------Update3d--------')
                 #===========================================================
                 data = data.astype(np.int8)
                 tmpImage = QImage(data, shape[1], shape[0], shape[1] * shape[2], QImage.Format_RGB888)
@@ -234,6 +326,8 @@ class dicomImage2DdisplayWidget(QWidget):
                 self.imLable.setPixmap(pixmap)
             elif len(shape) < 3:
                 data = raw_data
+                # data = (raw_data - self._low_hu) / self.window_width * 256
+                # print('---------Update2d---------')
                 data = data.astype(np.int8)
                 tmpImage = QImage(data, shape[1], shape[0],  QImage.Format_Grayscale8)
                 tmpImage.setColorTable(self._color_table)
@@ -261,12 +355,30 @@ class dicomImage2DdisplayWidget(QWidget):
         pass
 
     def getResizeEvent(self, sizeX, sizeY):
-        self.resize(sizeX, sizeY)
+        if self.currentFace == self.faceList[0]:
+            tmpSize = min(sizeX, sizeY)
+            self.imLable.resize(tmpSize, tmpSize)
+
+        elif self.currentFace == self.faceList[1]:
+            #==================Resize Lable===================
+            tmpSizeX = min(sizeX, sizeY)
+            tmpSizeY = tmpSizeX * self.zSpacing
+            self.imLable.resize(tmpSizeX, tmpSizeY)
+
+        elif self.currentFace == self.faceList[2]:
+            tmpSizeX = min(sizeX, sizeY)
+            tmpSizeY = tmpSizeX * self.zSpacing
+            self.imLable.resize(tmpSizeX, tmpSizeY)
+
+        # ==================Move Lable=====================
+        maxPosY = max(sizeY, self.imLable.height())
+        minPoxY = min(sizeY, self.imLable.height())
+        tmpPosX = np.clip((sizeX - sizeY), 0, max(sizeX, sizeY)) / 2
+        tmpPosY = (maxPosY - minPoxY) / 2
+        self.imLable.move(tmpPosX, tmpPosY)
         pass
 
     def resizeEvent(self, QResizeEvent):
-        # self.resize(self.width(), self.width())
-        self.imLable.move(self.width() / 2 - self.imLable.width() / 2, self.height() / 2 - self.imLable.width() / 2)
         pass
 
     def regionGrowingWheelEvent(self, event):
@@ -306,6 +418,9 @@ class dicomImage2DdisplayWidget(QWidget):
         :rtype: float
         """
         return self._high_hu - self._low_hu
+
+
+
 
 
 #=======================================================================================================================
