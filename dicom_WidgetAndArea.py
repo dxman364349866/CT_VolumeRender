@@ -153,8 +153,21 @@ class dicomImage2DdisplayWidget(QWidget):
         pass
 
     def addSeedsEvent(self):
-
         self.addSeedsSignal.emit(True)
+        tmpSeed = (0, 0)
+        self.lstSeeds.append(tmpSeed)
+        # print(self.lstSeeds[0])
+        # print('\n'.join(dir(self.lstSeeds)))
+        pass
+
+    def removeSeedEvent(self, num):
+        self.lstSeeds.remove(self.lstSeeds[num])
+        print(len(self.lstSeeds))
+        pass
+
+    def getSeedEvent(self, num):
+        print('---------------->')
+        print(num, self.lstSeeds[num])
         pass
 
     def initAnimation(self):
@@ -384,6 +397,10 @@ class dicomImage2DdisplayWidget(QWidget):
                 # tmpHig = math.floor(np.clip(tmpHig + 100, -1000, 3000))
                 # self.LowAndUpper = [tmpLow, tmpHig]
                 # print(self.LowAndUpper)
+                print('-------------------------')
+                print(self.lstSeeds[0])
+                print('-------------------------')
+
             else:
                 print('Region Mod has Nagtive number')
                 pass

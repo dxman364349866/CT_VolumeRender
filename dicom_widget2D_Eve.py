@@ -1,15 +1,17 @@
 import sys
 import SimpleITK
 from PyQt5.QtWidgets import  QWidget, QApplication, QGridLayout, QMdiSubWindow, QHBoxLayout, \
-    QVBoxLayout, QSplitter, QPushButton
+    QVBoxLayout, QSplitter, QPushButton, QGroupBox, QLayoutItem, QWidgetItem
 from PyQt5.QtGui import QPalette
 from PyQt5.QtCore import Qt
 
 from dicom_WidgetAndArea import dicomImage2DdisplayWidget
 from functools import partial
+from List_Seeds import SeedButton
 
 
 class dicom_widgetEve(QWidget):
+    # sendBackInfor = pyqtSignal(int)
     def __init__(self, **kwargs):
         super(dicom_widgetEve,self).__init__()
         self.setGeometry(50, 50, 512, 512)
@@ -44,7 +46,7 @@ class dicom_widgetEve(QWidget):
         self.splitter.setOrientation(Qt.Horizontal)
 
         self.otherWidget = QWidget(self)
-        self.otherWidget.setGeometry( 0, 0, 512, 512)
+        self.otherWidget.setGeometry(0, 0, 512, 512)
         self.otherWidget.tmpLayout = QVBoxLayout(self.otherWidget)
         self.otherWidget.setLayout(self.otherWidget.tmpLayout)
 
@@ -53,24 +55,43 @@ class dicom_widgetEve(QWidget):
 
         self.GLayout.addWidget(self.splitter)
         self.setLayout(self.GLayout)
+        self.seedList = []
 
-        self.testNum = 0
-
+        self.seedListNum = 0
         pass
 
     def addSeedList(self, event):
-        tmpButton = QPushButton('ID:' + str(self.testNum), self.otherWidget)
-        tmpButton.clicked.connect(partial( self.mybuttonClicked, str(self.testNum)))
-        self.otherWidget.tmpLayout.addWidget(tmpButton)
-        self.testNum += 1
+
+        TmpSeedButton = SeedButton(Num=self.otherWidget.tmpLayout.count())
+        TmpSeedButton.deleteSignal.connect(self.seedDeleteFunction)
+        self.otherWidget.tmpLayout.addWidget(TmpSeedButton)
+        # self.seedList.append(TmpSeedButton)
+
+
 
         pass
 
-    def mybuttonClicked(self, event):
-        print('helloButton')
-        print(self.sender().text())
-        print(self.sender().text())
+    def sortSeedList(self, num):
+        print(self.otherWidget.tmpLayout.count())
+        for i in range(num, self.otherWidget.tmpLayout.count()):
+            item = self.otherWidget.tmpLayout.itemAt(i)
+            TmpW = item.widget()
+            TmpW.seedIndex = i -1
+            TmpW.renameSeedButton()
         pass
+
+    def seedDeleteFunction(self, event):
+
+        self.sortSeedList(event)
+        pass
+
+
+    def seedSelectFunction(self, event):
+        # text = self.sender().text()
+        # text, num = text.split(':')
+        # self.dicom2D.getSeedEvent(int(num))
+        pass
+
 
     def resizeEvent(self, QResizeEvent):
         # print('\n'.join(dir(QResizeEvent)))
