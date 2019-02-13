@@ -235,12 +235,12 @@ class plotWindow(QWidget):
 
 
 
-# tmpPoints = [[0, 0], [500, 0.55], [1000, 0.55], [1150, 0.85]]
-# tmpColor = [[0, 0.0, 0.0, 0.0], [500, 0.6, 0.5, 0.3], [1000, 0.9, 0.9, 0.3], [1150, 1.0, 1.0, 0.9]]
-# tmpvOpacity = [[0, 0.2], [500, 0.55], [1000, 0.55], [1150, 0.85]]
-# tmpgOpacity = [[0, 0.0], [90, 0.8], [100, 1.0]]
-#
-# if __name__ == '__main__':
-#     app = QApplication(sys.argv)
-#     win = plotWindow(points=tmpPoints, colors=tmpColor, vOpacity=tmpvOpacity, gOpacity=tmpgOpacity)
-#     sys.exit(app.exec_())
+tmpPoints = [[0, 0], [500, 0.55], [1000, 0.55], [1150, 0.85]]
+tmpColor = [[0, 0.0, 0.0, 0.0], [500, 0.6, 0.5, 0.3], [1000, 0.9, 0.9, 0.3], [1150, 1.0, 1.0, 0.9]]
+tmpvOpacity = [[0, 0.2], [500, 0.55], [1000, 0.55], [1150, 0.85]]
+tmpgOpacity = [[0, 0.0], [90, 0.8], [100, 1.0]]
+
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    win = plotWindow(points=tmpPoints, colors=tmpColor, vOpacity=tmpvOpacity, gOpacity=tmpgOpacity)
+    sys.exit(app.exec_())

@@ -29,6 +29,8 @@ class dicomImage2DdisplayWidget(QWidget):
         self._high_hu = kwargs.get("high_hu", 3250)
         self._axis = 0
 
+        self.seedsColors = []
+
         self.baseImageSize = 512
 
         self.initUI()
@@ -150,6 +152,11 @@ class dicomImage2DdisplayWidget(QWidget):
 
     def setGroup_pos(self, apos):
         self.groupbox.move(apos.x(), apos.y())
+        pass
+
+    def setSeedsColor(self, colorList):
+        self.seedsColors = colorList
+        print('Got You: ', self.seedsColors)
         pass
 
     def addSeedsEvent(self):
