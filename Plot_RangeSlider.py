@@ -260,6 +260,8 @@ class QRangeSlider(QtWidgets.QWidget, Ui_Form):
         if s >= self.min() and e <= self.max():
             self.setRange(s, e)
 
+
+
     def setBackgroundStyle(self, style):
         self._tail.setStyleSheet(style)
         self._head.setStyleSheet(style)

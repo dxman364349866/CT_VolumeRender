@@ -2,19 +2,17 @@ import sys
 import math
 import SimpleITK
 import numpy as np
-from dicom_data import DicomData
 from PyQt5.QtWidgets import QWidget, QLabel, QApplication, QGridLayout, \
     QHBoxLayout, QVBoxLayout, QPushButton, QComboBox, QScrollBar, QBoxLayout, \
-    QDialogButtonBox, QGroupBox
-from PyQt5.QtGui import QPixmap, QImage, QIcon, qRgb, QPalette, QColor
+    QDialogButtonBox, QGroupBox, QShortcut
+from PyQt5.QtGui import QPixmap, QImage, QIcon, qRgb, QPalette, QColor, QKeySequence
 from PyQt5.QtCore import QRect, QPropertyAnimation, QPointF, pyqtProperty
-from Plot_RangeSlider import QRangeSlider
 from PyQt5.QtCore import Qt, pyqtSignal
 
-
-import cgitb
+# from Plot_RangeSlider import QRangeSlider
 
 # ==解决pyqt5异常只要进入事件循环,程序就崩溃,而没有任何提示==
+import cgitb
 cgitb.enable(format='text')
 #=========================================================
 
@@ -30,7 +28,6 @@ class dicomImage2DdisplayWidget(QWidget):
         self._axis = 0
 
         self.seedsColors = []
-
         self.baseImageSize = 512
 
         self.initUI()
@@ -62,16 +59,18 @@ class dicomImage2DdisplayWidget(QWidget):
 
         #============================OperationMod===============================
         self.OperationMod = 0
-        self.faceList = ['MainFace', 'LeftFace', 'FrontFace']
+        self.facePlane = ['mainFaceplane', 'leftFaceplane', 'frontFaceplane']
         self.idxSlice = 100
 
-        self.currentFace = self.faceList[self._face]
+        self.currentFace = self.facePlane[self._face]
         #============================RegionGrowingParameter=====================
         self.PosXY = [150, 75]
-        self.lstSeeds = [(self.PosXY[0], self.PosXY[1])]
-
+        self.seedList = [(self.PosXY[0], self.PosXY[1])]
+        self.seedSelectNum = 0
 
         self.LowAndUpper = [10, 3000]
+        self.regionArea = []
+        self.regionDrawSize = 5
 
         self.idxSlicelimt = self.datas.shape[0]
         # print(self.datas.shape[0])
@@ -83,35 +82,28 @@ class dicomImage2DdisplayWidget(QWidget):
         pass
 
     def initOperationButton(self):
+        self.facePlanes = QComboBox(self)
+        self.facePlanes.addItem(self.facePlane[0])
+        self.facePlanes.addItem(self.facePlane[1])
+        self.facePlanes.addItem(self.facePlane[2])
+        self.facePlanes.setCurrentIndex(self._face)
+        # self.facePlanes.activated[str].connect(self.faceItem_Choice)
+        self.facePlanes.currentTextChanged.connect(self.faceItem_Choice)
+        self.facePlanes.keyPressEvent = self.customComboxKeyEvent
+        self.facePlanes.move((self.width() - self.facePlanes.width()), 0)
 
-        self.faceCombox = QComboBox(self)
-        self.faceCombox.addItem(self.faceList[0])
-        self.faceCombox.addItem(self.faceList[1])
-        self.faceCombox.addItem(self.faceList[2])
-        self.faceCombox.setCurrentIndex(self._face)
-        self.faceCombox.activated[str].connect(self.item_Choice)
-        self.faceCombox.move((self.width() - self.faceCombox.width()), 0)
+        #==================================Active keyBoard event without combobox=======================
+        shorcut = QShortcut(QKeySequence(Qt.Key_F), self.facePlanes, activated=self.useforTestKeyEvent)
+
 
         self.modCombox = QComboBox(self)
         self.modCombox.addItem('Normal')
         self.modCombox.addItem('Region')
         self.modCombox.setCurrentIndex(self.OperationMod)
-        self.modCombox.activated[str].connect(self.mod_Choice)
-        self.modCombox.move((self.width() - self.faceCombox.width()-self.modCombox.width()), 0)
-
-        # self.lowHusBar = QScrollBar(Qt.Horizontal, self)
-        # self.lowHusBar.setGeometry(0, 52, 488, 5)
-        # self.lowHusBar.setMaximum(3250)
-        # self.lowHusBar.setMinimum(-1150)
-        # self.lowHusBar.setValue(0)
-        # self.lowHusBar.sliderMoved.connect(self.sliderval)
-        #
-        # self.heighHusBar = QScrollBar(Qt.Horizontal, self)
-        # self.heighHusBar.setGeometry(0, 40, 488, 5)
-        # self.heighHusBar.setMaximum(3250)
-        # self.heighHusBar.setMinimum(-1150)
-        # self.heighHusBar.setValue(0)
-        # self.heighHusBar.sliderMoved.connect(self.sliderval)
+        # self.modCombox.activated[str].connect(self.mod_Choice)
+        self.modCombox.currentTextChanged.connect(self.mod_Choice)
+        self.modCombox.keyPressEvent = self.customComboxKeyEvent
+        self.modCombox.move((self.width() - self.facePlanes.width() - self.modCombox.width()), 0)
 
         self.layerBar = QScrollBar(Qt.Horizontal, self)
         self.layerBar.setGeometry(0, 0, 512, 5)
@@ -120,21 +112,14 @@ class dicomImage2DdisplayWidget(QWidget):
         self.layerBar.setValue(0)
         self.layerBar.sliderMoved.connect(self.selectLayer)
 
-        self.addSeedsButton = QPushButton(self)
-        self.addSeedsButton.setGeometry(0, 0, 16, 16)
-        self.addSeedsButton.clicked.connect(self.addSeedsEvent)
-
         self.BaseBoxLayout = QBoxLayout(QBoxLayout.TopToBottom)
-        # self.BaseBoxLayout.addWidget(self.heighHusBar, 0)
-        # self.BaseBoxLayout.addWidget(self.lowHusBar, 0)
         self.BaseBoxLayout.addWidget(self.layerBar, 0)
         self.BaseBoxLayout.setAlignment(Qt.AlignTop)
 
         self.secondBoxLayout = QBoxLayout(QBoxLayout.LeftToRight)
         self.secondBoxLayout.addLayout(self.BaseBoxLayout)
         self.secondBoxLayout.addWidget(self.modCombox)
-        self.secondBoxLayout.addWidget(self.faceCombox)
-        self.secondBoxLayout.addWidget(self.addSeedsButton)
+        self.secondBoxLayout.addWidget(self.facePlanes)
         self.secondBoxLayout.setAlignment(Qt.AlignTop)
 
         self.groupbox = QGroupBox(self)
@@ -145,7 +130,6 @@ class dicomImage2DdisplayWidget(QWidget):
         self.showButton.setGeometry(0, 0, 16, 16)
         self.showButton.clicked.connect(self.playAnimation)
 
-        # self.imLable.setAlignment(Qt.AlignCenter)
 
         self.initAnimation()
         pass
@@ -155,26 +139,36 @@ class dicomImage2DdisplayWidget(QWidget):
         pass
 
     def setSeedsColor(self, colorList):
-        self.seedsColors = colorList
-        print('Got You: ', self.seedsColors)
+
+        self.seedList.clear()
+        self.seedsColors.clear()
+        for i in range(0, len(colorList)):
+            self.seedsColors.append(colorList[i][0])
+            self.seedList.append(colorList[i][1])
+
+        print('Color: ', self.seedsColors)
+        print('--------------------------------')
+        print('Seeds: ', self.seedList)
         pass
 
-    def addSeedsEvent(self):
-        self.addSeedsSignal.emit(True)
-        tmpSeed = (0, 0)
-        self.lstSeeds.append(tmpSeed)
-        # print(self.lstSeeds[0])
-        # print('\n'.join(dir(self.lstSeeds)))
+    def selectSeedinList(self, num):
+        # tmpS = self.seedList[num]
+        # tmpC = self.seedsColors[num]
+        self.seedSelectNum = num
+        print(self.seedsColors)
+        print(self.seedList)
+        # print('number is :', num)
+        # print(tmpC, tmpS)
         pass
 
-    def removeSeedEvent(self, num):
-        self.lstSeeds.remove(self.lstSeeds[num])
-        print(len(self.lstSeeds))
-        pass
+    def viewSeedinList(self, event):
+        if event[0] == True:
+            print('Open eye is:', event[1])
+        elif event[0] == False:
+            print('Close eye is:', event[1])
+        else:
+            print('viewSeedinList error.....')
 
-    def getSeedEvent(self, num):
-        print('---------------->')
-        print(num, self.lstSeeds[num])
         pass
 
     def initAnimation(self):
@@ -197,7 +191,7 @@ class dicomImage2DdisplayWidget(QWidget):
         pass
 
     def playAnimation(self):
-        print('-----Play-----')
+        print('-----PlayAnimation-----')
         if self.isBoardshow == False:
             self.reverGroupBoxAnim.stop()
             self.groupBoxAnim.start()
@@ -225,10 +219,8 @@ class dicomImage2DdisplayWidget(QWidget):
     def mod_Choice(self, event):
         if event == 'Normal':
             self.OperationMod = 0
-            # print('N')
         elif event == 'Region':
             self.OperationMod = 1
-            # print('R')
         self.choiceOpreationMod()
         pass
 
@@ -241,18 +233,20 @@ class dicomImage2DdisplayWidget(QWidget):
             self.frontfaceView()
         pass
 
-    def item_Choice(self, event):
-        if event == self.faceList[0]:
+
+    def faceItem_Choice(self, faceEvent):
+        print(faceEvent)
+        if faceEvent == self.facePlane[0]:
             self.topfaceView()
-            self.currentFace = self.faceList[0]
+            self.currentFace = self.facePlane[0]
             print('main view')
-        elif event == self.faceList[1]:
+        elif faceEvent == self.facePlane[1]:
             self.leftfaceView()
-            self.currentFace = self.faceList[1]
+            self.currentFace = self.facePlane[1]
             print('left view')
-        elif event == self.faceList[2]:
+        elif faceEvent == self.facePlane[2]:
             self.frontfaceView()
-            self.currentFace = self.faceList[2]
+            self.currentFace = self.facePlane[2]
             print('front view')
 
         self.choiceOpreationMod()
@@ -271,9 +265,11 @@ class dicomImage2DdisplayWidget(QWidget):
     def choiceOpreationMod(self):
         if self.OperationMod == 0:
             self.imLable.mouseMoveEvent = self.normalModMouseMoveEvent
-            self.imLable.wheelEvent = self.NormalWheelEvent
         elif self.OperationMod == 1:
             self.imLable.mouseMoveEvent = self.regionModMouseMoveEvent
+            self.imLable.mousePressEvent = self.regionModMousePressEvent
+            self.imLable.mouseReleaseEvent = self.regionModMouseReleasedEvent
+
             self.imLable.wheelEvent = self.regionGrowingWheelEvent
         self.choiceDisplayMod()
         pass
@@ -327,29 +323,42 @@ class dicomImage2DdisplayWidget(QWidget):
     def drawGrowingArea(self):
         self.imgOriginal = SimpleITK.GetImageFromArray(self.datas[self.idxSlice])
         self.imgWhiteMatter = SimpleITK.ConnectedThreshold(image1=self.imgOriginal,
-                                                           seedList=self.lstSeeds,
+                                                           seedList=self.seedList,
                                                            lower=self.LowAndUpper[0],
                                                            upper=self.LowAndUpper[1],
                                                            replaceValue=1,
                                                            )
+        self.regionArea = SimpleITK.GetArrayFromImage(self.imgWhiteMatter)
+        self.imgWhiteMatter = SimpleITK.GetImageFromArray(self.regionArea)
+        self.drawGrowingAreaContour()
+        pass
+
+    def drawGrowingAreaContour(self):
+        self.imgWhiteMatter = SimpleITK.GetImageFromArray(self.regionArea)
         self.imgWhiteMatterNoHoles = SimpleITK.VotingBinaryHoleFilling(image1=self.imgWhiteMatter,
                                                                        radius=[2] * 3,
                                                                        majorityThreshold=50,
                                                                        backgroundValue=0,
                                                                        foregroundValue=1)
-
-        tmpImage = SimpleITK.LabelOverlay(self.imgOriginal, SimpleITK.LabelContour(self.imgWhiteMatterNoHoles))
-        # tmpImage = SimpleITK.LabelOverlay(self.imgOriginal, self.imgWhiteMatterNoHoles)
-        # tmpImage = SimpleITK.LabelOverlay(self.imgOriginal, self.imgWhiteMatterNoHoles)
-        MyNarray = SimpleITK.GetArrayFromImage(tmpImage)
-
-
-        self.imData = MyNarray
+        regionContour = SimpleITK.LabelContour(self.imgWhiteMatterNoHoles)
+        tmpImage = SimpleITK.LabelOverlay(self.imgOriginal, regionContour)
+        regionContourArray = SimpleITK.GetArrayFromImage(tmpImage)
+        self.imData = regionContourArray
         self.displayDicomImage()
-
         pass
 
-#==============================Use for display dicom image=================================
+    #==============================Key board event ============================================
+    def customComboxKeyEvent(self, event):
+        print('ComboxKeyEvent')
+        pass
+
+    def useforTestKeyEvent(self):
+        print('just test combobox key event')
+        # self.displayDicomImage()
+        pass
+
+
+    #==============================Use for display dicom image=================================
     def displayDicomImage(self):
         if self.imData is not None:
             raw_data = self.imData
@@ -392,6 +401,28 @@ class dicomImage2DdisplayWidget(QWidget):
         self.choiceDisplayMod()
         pass
 
+#=============================Region mod mouse Press and released event============================
+    def regionModMousePressEvent(self, event):
+        if event.buttons() == Qt.RightButton:
+            xAxis = event.pos().x()
+            yAxis = event.pos().y()
+            if xAxis >= 0 and yAxis >= 0:
+                tmpX = math.floor(xAxis * (self.baseImageSize / self.imLable.width()))
+                tmpY = math.floor(yAxis * (self.baseImageSize / self.imLable.height()))
+                self.regionArea[tmpY - self.regionDrawSize:tmpY + self.regionDrawSize,
+                tmpX - self.regionDrawSize:tmpX + self.regionDrawSize] = 0
+                self.drawGrowingAreaContour()
+
+        print(event.buttons())
+        pass
+
+    def regionModMouseReleasedEvent(self, Event):
+        if Event.buttons() == Qt.RightButton:
+            print('Right button released')
+        pass
+#==================================================================================================
+
+#=====================================Region mod mouse move event==================================
     def regionModMouseMoveEvent(self, event):
         if event.buttons() == Qt.LeftButton:
             xAxis = event.pos().x()
@@ -399,21 +430,24 @@ class dicomImage2DdisplayWidget(QWidget):
             if xAxis >= 0 and yAxis >= 0:
                 self.PosXY[0] = math.floor(xAxis * (self.baseImageSize / self.imLable.width()))
                 self.PosXY[1] = math.floor(yAxis * (self.baseImageSize / self.imLable.height()))
-                self.lstSeeds = [(self.PosXY[0], self.PosXY[1])]
-                # tmpLow = math.floor(np.clip(tmpLow - 50, -1000, 3000))
-                # tmpHig = math.floor(np.clip(tmpHig + 100, -1000, 3000))
-                # self.LowAndUpper = [tmpLow, tmpHig]
-                # print(self.LowAndUpper)
-                print('-------------------------')
-                print(self.lstSeeds[0])
-                print('-------------------------')
-
+                self.seedList[self.seedSelectNum] = (self.PosXY[0], self.PosXY[1])
             else:
                 print('Region Mod has Nagtive number')
                 pass
+        elif event.buttons() == Qt.RightButton:
+            xAxis = event.pos().x()
+            yAxis = event.pos().y()
+            if xAxis >= 0 and yAxis >= 0:
+                tmpX = math.floor(xAxis * (self.baseImageSize / self.imLable.width()))
+                tmpY = math.floor(yAxis * (self.baseImageSize / self.imLable.height()))
+                self.regionArea[tmpY - self.regionDrawSize:tmpY + self.regionDrawSize, tmpX - self.regionDrawSize:tmpX + self.regionDrawSize] = 0
+                self.drawGrowingAreaContour()
+                return
 
         self.choiceDisplayMod()
         pass
+#===================================================================================================
+
 
     def setScaleSize(self, maxnum, minnum):
         self.faceWindowH = maxnum
@@ -421,22 +455,18 @@ class dicomImage2DdisplayWidget(QWidget):
         pass
 
     def getResizeEvent(self, sizeX, sizeY):
-        if self.currentFace == self.faceList[0]:
+        if self.currentFace == self.facePlane[0]:
             tmpSize = min(sizeX, sizeY)
             self.imLable.resize(tmpSize, tmpSize)
 
-        elif self.currentFace == self.faceList[1]:
+        elif self.currentFace == self.facePlane[1]:
             #==================Resize Lable===================
-
             self.setScaleSize(min(sizeX, sizeY), min(sizeX, sizeY) * (min(self.datas.shape)/max(self.datas.shape)))
             self.imLable.resize(self.faceWindowH, self.faceWindowV)
 
-        elif self.currentFace == self.faceList[2]:
-
+        elif self.currentFace == self.facePlane[2]:
             self.setScaleSize(min(sizeX, sizeY), min(sizeX, sizeY) * (min(self.datas.shape) / max(self.datas.shape)))
             self.imLable.resize(self.faceWindowH, self.faceWindowV)
-
-
 
         #==================Move Lable=====================
         maxPosY = max(sizeY, self.imLable.height())
@@ -446,8 +476,6 @@ class dicomImage2DdisplayWidget(QWidget):
         self.imLable.move(tmpPosX, tmpPosY)
         pass
 
-    # def resizeEvent(self, QResizeEvent):
-    #     pass
 
     def regionGrowingWheelEvent(self, event):
         angle = event.angleDelta() / 8
@@ -455,13 +483,13 @@ class dicomImage2DdisplayWidget(QWidget):
         angleY = angle.y()
 
         if angleY > 0:
-            if self.LowAndUpper[0] < self.LowAndUpper[1] or\
-                self.LowAndUpper[1] > self.LowAndUpper[0]:
+            if self.LowAndUpper[0] < self.LowAndUpper[1] or \
+                    self.LowAndUpper[1] > self.LowAndUpper[0]:
                 self.LowAndUpper[0] += 1
                 self.LowAndUpper[1] -= 1
         elif angleY < 0:
-            if self.LowAndUpper[0] < self.LowAndUpper[1] or\
-                self.LowAndUpper[1] > self.LowAndUpper[0]:
+            if self.LowAndUpper[0] < self.LowAndUpper[1] or \
+                    self.LowAndUpper[1] > self.LowAndUpper[0]:
                 self.LowAndUpper[0] -= 1
                 self.LowAndUpper[1] += 1
 
@@ -469,24 +497,8 @@ class dicomImage2DdisplayWidget(QWidget):
         self.choiceDisplayMod()
         pass
 
-    def NormalWheelEvent(self, event):
-        # angle = event.angleDelta() / 8
-        # angleX = angle.x()
-        # angleY = angle.y()
-        # if angleY > 0:
-        #     self.idxSlice = np.clip(self.idxSlice + 1, 0, self.idxSlicelimt - 1)
-        # elif angleY < 0:
-        #     self.idxSlice = np.clip(self.idxSlice - 1, 0, self.idxSlicelimt - 1)
-        #
-        # # print(self.faceWindowH, self.faceWindowV)
-        # self.choiceDisplayMod()
-        pass
-
     @property
     def window_width(self):
-        """
-        :rtype: float
-        """
         return self._high_hu - self._low_hu
 
 

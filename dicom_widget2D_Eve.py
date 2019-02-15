@@ -14,7 +14,7 @@ from List_Seeds import SeedButton
 class dicom_widgetEve(QWidget):
     # sendBackInfor = pyqtSignal(int)
     def __init__(self, **kwargs):
-        super(dicom_widgetEve,self).__init__()
+        super(dicom_widgetEve, self).__init__()
         self.setGeometry(50, 50, 512, 512)
         self.setWindowTitle('Dicom2DEve')
         self.initUI()
@@ -32,8 +32,9 @@ class dicom_widgetEve(QWidget):
         Spacing = imgOriginals.GetSpacing()
 
         #=================================================================================
-        print(Spacing)
-        print(datas.shape)
+        # print(Spacing)
+        # print(datas.shape)
+
         tmpPalete = QPalette()
         tmpPalete.setColor(QPalette.Background, Qt.black)
         self.setPalette(tmpPalete)
@@ -46,6 +47,8 @@ class dicom_widgetEve(QWidget):
         self.OperationWin = dicom2D_OperationWin()
         self.OperationWin.show()
         self.OperationWin.sendSeedSignal.connect(self.showSeedsList)
+        self.OperationWin.sendSeedSelectSignal.connect(self.selectSeedInList)
+        self.OperationWin.sendSeedRegionViewSignal.connect(self.seedRegionView)
 
         # self.dicom2D.addSeedsSignal.connect(self.addSeedList)
 
@@ -102,8 +105,17 @@ class dicom_widgetEve(QWidget):
         self.dicom2D.setSeedsColor(list)
         pass
 
+    def selectSeedInList(self, num):
+        # print('select num is : ', num)
+        self.dicom2D.selectSeedinList(num)
+        pass
+
+    def seedRegionView(self, event):
+        self.dicom2D.viewSeedinList(event)
+        pass
+
     def resizeEvent(self, QResizeEvent):
-        print('\n'.join(dir(QResizeEvent)))
+        # print('\n'.join(dir(QResizeEvent)))
         self.dicom2D.getResizeEvent(QResizeEvent.size().width(), QResizeEvent.size().height())
         pass
 

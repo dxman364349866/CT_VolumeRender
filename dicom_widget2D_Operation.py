@@ -1,13 +1,13 @@
 import sys
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QMenuBar, QSplitter, \
-    QVBoxLayout, QHBoxLayout, QGroupBox, QStatusBar, QLabel, QComboBox
+    QVBoxLayout, QHBoxLayout, QGroupBox, QStatusBar, QLabel, QComboBox, QScrollArea
 from PyQt5.QtCore import Qt
 from PyQt5.QtCore import pyqtSignal
 from List_Seeds import SeedButton
 
 
 class segmentationOperation(QGroupBox):
-    Signal_NoParameters = pyqtSignal(bool)
+    Signal_BoolParameters = pyqtSignal(bool)
     def __init__(self):
         super(segmentationOperation, self).__init__()
         self.setGeometry(0, 0, 512, 64)
@@ -17,6 +17,16 @@ class segmentationOperation(QGroupBox):
         self.addSeed.clicked.connect(self.addSeedevent)
         self.removeSeed = QPushButton('Remove', self)
         self.removeSeed.clicked.connect(self.removeSeedevent)
+
+        #==============Define pen and eraser==================
+        self.regionPen = QPushButton('pen', self)
+        self.regionPen.clicked.connect(self.regionPenEvent)
+        self.regionPenmod = False
+        self.regionEraserMod = False
+        self.regionEraser = QPushButton('eraser', self)
+        self.regionEraser.clicked.connect(self.regionEraserEvent)
+
+        #=====================================================
 
         self.show3DMOd = QComboBox(self)
         self.information = ['Voxel', 'Mesh']
@@ -28,17 +38,47 @@ class segmentationOperation(QGroupBox):
         self.seedOpertaionLayout = QHBoxLayout(self)
         self.seedOpertaionLayout.addWidget(self.addSeed)
         self.seedOpertaionLayout.addWidget(self.removeSeed)
+        self.seedOpertaionLayout.addWidget(self.regionPen)
+        self.seedOpertaionLayout.addWidget(self.regionEraser)
         self.seedOpertaionLayout.addWidget(self.showButton)
         self.seedOpertaionLayout.addWidget(self.show3DMOd)
 
         self.setLayout(self.seedOpertaionLayout)
 
     def addSeedevent(self):
-        self.Signal_NoParameters.emit(True)
+        self.Signal_BoolParameters.emit(True)
         pass
 
     def removeSeedevent(self):
-        self.Signal_NoParameters.emit(False)
+        self.Signal_BoolParameters.emit(False)
+        pass
+
+    def regionPenEvent(self, event):
+        if self.regionPenmod == False:
+            self.regionPen.setStyleSheet('background-color: rgb(255, 255, 255)')
+            if self.regionEraserMod == True:
+                self.regionEraser.setStyleSheet('background-color: None')
+                self.regionEraserMod = False
+            self.regionPenmod = True
+        elif self.regionPenmod == True:
+            self.regionPen.setStyleSheet('background-color: None')
+            self.regionPenmod = False
+        else:
+            print('Pen error')
+        pass
+
+    def regionEraserEvent(self, event):
+        if self.regionEraserMod == False:
+            self.regionEraser.setStyleSheet('background-color: rgb(255, 255, 255)')
+            if self.regionPenmod == True:
+                self.regionPen.setStyleSheet('background-color: None')
+                self.regionPenmod = False
+            self.regionEraserMod = True
+        elif self.regionEraserMod == True:
+            self.regionEraser.setStyleSheet('background-color: None')
+            self.regionEraserMod = False
+        else:
+            print('Eraser error')
         pass
 
     def itemChoice(self, event):
@@ -51,34 +91,53 @@ class segmentationOperation(QGroupBox):
 
     pass
 
+#=========================================================================
+#                             DISPLAYAREA
+#=========================================================================
+
 class segmentationDisplay(QGroupBox):
     seedColorsSignal = pyqtSignal(list)
+    seedSelectSignal = pyqtSignal(int)
+    seedRegionViewSignal = pyqtSignal(list)
+
     def __init__(self):
         super(segmentationDisplay, self).__init__()
         self.setGeometry(0, 0, 512, 512)
         self.seedBttonbefornum = 0
-        self.regionSeedColors = []
+        self.regionSeedinfor = []
+        self.listSeeds = []
 
         self.initUI()
     def initUI(self):
         self.seedStatus = QStatusBar()
-        self.statusButton = QLabel('  color  ')
-        self.colorStatus = QLabel('  select  ')
-        self.nameStatus = QLabel('   remove   ')
 
-        self.seedStatus.addWidget(self.statusButton)
-        self.seedStatus.addWidget(self.colorStatus)
-        self.seedStatus.addWidget(self.nameStatus)
+        visable = QLabel('visable  ')
+        statusButton = QLabel('  color  ')
+        colorStatus = QLabel('  select  ')
+        nameStatus = QLabel('   remove   ')
 
-        self.subGBox = QGroupBox()
+        self.seedStatus.addWidget(visable)
+        self.seedStatus.addWidget(statusButton)
+        self.seedStatus.addWidget(colorStatus)
+        self.seedStatus.addWidget(nameStatus)
+
         self.seedListBar = QVBoxLayout()
+        self.seedListBar.setAlignment(Qt.AlignTop)
 
-        self.subGBox.setLayout(self.seedListBar)
-        self.subGBox.setGeometry(0, 0, 512, 512)
+        self.topFiller = QWidget()
+        self.topFiller.setLayout(self.seedListBar)
+        self.topFiller.setMinimumSize(250, 2000)
+
+        self.scrollArea = QScrollArea(self)
+        self.scrollArea.setGeometry(0, 0, 512, 512)
+        self.scrollArea.setWidget(self.topFiller)
+        self.scrollArea.setWidgetResizable(True)
+
+
 
         self.splitter = QSplitter(Qt.Vertical)
         self.splitter.addWidget(self.seedStatus)
-        self.splitter.addWidget(self.subGBox)
+        self.splitter.addWidget(self.scrollArea)
 
         self.showSeedArea = QVBoxLayout()
         self.showSeedArea.addWidget(self.splitter)
@@ -86,16 +145,18 @@ class segmentationDisplay(QGroupBox):
         self.setLayout(self.showSeedArea)
 
     def addSeedwidget(self):
-        seedBtn = SeedButton(Num=self.seedListBar.layout().count(), Name='RegionArea ')
-
-
-        print(len(self.regionSeedColors))
+        seedBtn = SeedButton(Num=self.seedListBar.layout().count(), Name='RegionArea:')
         seedBtn.selectSignal.connect(self.selectSeedButton)
         seedBtn.deleteSignal.connect(self.removeSeedButton)
-        self.seedListBar.addWidget(seedBtn)
+        seedBtn.viewRegionsignal.connect(self.viewRegionArea)
 
-        self.regionSeedColors.append(seedBtn.regionColor)
-        self.seedColorsSignal.emit(self.regionSeedColors)
+        seedInform = [seedBtn.regionColor, (0, 0)]
+        self.seedListBar.insertWidget(self.seedListBar.count()-1, seedBtn)
+
+        self.seedListBar.addWidget(seedBtn)
+        self.regionSeedinfor.append(seedInform)
+
+        self.seedColorsSignal.emit(self.regionSeedinfor)
 
         pass
 
@@ -104,21 +165,17 @@ class segmentationDisplay(QGroupBox):
             if i == event:
                 continue
             else:
-                print(self.seedListBar.itemAt(i))
+                # print(self.seedListBar.itemAt(i))
                 seedBtn = self.seedListBar.itemAt(i).widget()
                 seedBtn.setSelectButonDefaultcolor()
-                print(i)
+                # print(i)
 
-        # if self.seedListBar.layout().count() > 1:
-        #     self.seedListBar.itemAt(self.seedBttonbefornum).widget().setSelectButonDefaultcolor()
-        #     self.seedBttonbefornum = event
-        # else:
-        #     print('sorry the seedListBar length is to short')
+        self.seedSelectSignal.emit(event)
 
         pass
 
     def removeSeedButton(self, event):
-        print(event)
+        # print(event)
         for num in range(event, self.seedListBar.layout().count()):
             item = self.seedListBar.itemAt(num)
             TmpW = item.widget()
@@ -127,16 +184,26 @@ class segmentationDisplay(QGroupBox):
             pass
 
 
-        self.regionSeedColors.remove(self.regionSeedColors[event])
-        self.seedColorsSignal.emit(self.regionSeedColors)
+        self.regionSeedinfor.remove(self.regionSeedinfor[event])
+        self.seedColorsSignal.emit(self.regionSeedinfor)
 
         pass
 
-
+    def viewRegionArea(self, event):
+        self.seedRegionViewSignal.emit(event)
+        pass
     pass
+
+
+#=================================================================
+#                    this is main windows
+#=================================================================
 
 class dicom2D_OperationWin(QWidget):
     sendSeedSignal = pyqtSignal(list)
+    sendSeedSelectSignal = pyqtSignal(int)
+    sendSeedRegionViewSignal = pyqtSignal(list)
+
     def __init__(self):
         super(dicom2D_OperationWin, self).__init__()
         self.setWindowTitle('SeedOperationWindow')
@@ -148,10 +215,12 @@ class dicom2D_OperationWin(QWidget):
         self.vBox = QVBoxLayout(self)
 
         self.segmentOpration = segmentationOperation()
-        self.segmentOpration.Signal_NoParameters.connect(self.gotSignal)
+        self.segmentOpration.Signal_BoolParameters.connect(self.gotSignal)
 
         self.segmentDisplay = segmentationDisplay()
-        self.segmentDisplay.seedColorsSignal.connect(self.gotColorSignal)
+        self.segmentDisplay.seedColorsSignal.connect(self.seedSeedInforList)
+        self.segmentDisplay.seedSelectSignal.connect(self.seedSeedSelect)
+        self.segmentDisplay.seedRegionViewSignal.connect(self.seedRegionView)
 
         self.splitter.addWidget(self.segmentOpration)
         self.splitter.addWidget(self.segmentDisplay)
@@ -161,9 +230,17 @@ class dicom2D_OperationWin(QWidget):
 
         pass
 
-    def gotColorSignal(self, list):
+    def seedSeedInforList(self, list):
         # print(list)
         self.sendSeedSignal.emit(list)
+        pass
+
+    def seedSeedSelect(self, num):
+        self.sendSeedSelectSignal.emit(num)
+        pass
+
+    def seedRegionView(self, event):
+        self.sendSeedRegionViewSignal.emit(event)
         pass
 
     def gotSignal(self, event):
@@ -177,13 +254,17 @@ class dicom2D_OperationWin(QWidget):
 
 
     def addSeedsignal(self):
-        print('Add')
+        # print('Add')
         self.segmentDisplay.addSeedwidget()
         pass
 
     def removeSeedsignal(self):
         print('Remove')
         pass
+
+    # def keyPressEvent(self, QKeyEvent):
+    #     print('hello')
+    #     pass
 
 
 
