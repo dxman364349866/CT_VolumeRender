@@ -5,11 +5,12 @@ import numpy as np
 from PyQt5.QtWidgets import QWidget, QLabel, QApplication, QGridLayout, \
     QHBoxLayout, QVBoxLayout, QPushButton, QComboBox, QScrollBar, QBoxLayout, \
     QDialogButtonBox, QGroupBox, QShortcut
-from PyQt5.QtGui import QPixmap, QImage, QIcon, qRgb, QPalette, QColor, QKeySequence
-from PyQt5.QtCore import QRect, QPropertyAnimation, QPointF, pyqtProperty
+from PyQt5.QtGui import QPixmap, QImage, QIcon, qRgb, QPalette, QColor, QKeySequence, \
+    QPainter, QBrush, QPen
+from PyQt5.QtCore import QRect, QPropertyAnimation, QPointF, pyqtProperty, QPoint
 from PyQt5.QtCore import Qt, pyqtSignal
 
-# from Plot_RangeSlider import QRangeSlider
+from Plot_RangeSlider import QRangeSlider
 
 # ==解决pyqt5异常只要进入事件循环,程序就崩溃,而没有任何提示==
 import cgitb
@@ -29,6 +30,13 @@ class dicomImage2DdisplayWidget(QWidget):
 
         self.seedsColors = []
         self.baseImageSize = 512
+        self.regionDrawMod = 0
+
+        #===============Regioin draw tool parmeter===================
+        self.drawPanterbegin = QPoint()
+        self.drawPanterEnd = QPoint()
+        self.posX = 0
+        self.posY = 0
 
         self.initUI()
 
@@ -93,8 +101,22 @@ class dicomImage2DdisplayWidget(QWidget):
         self.facePlanes.move((self.width() - self.facePlanes.width()), 0)
 
         #==================================Active keyBoard event without combobox=======================
-        shorcut = QShortcut(QKeySequence(Qt.Key_F), self.facePlanes, activated=self.useforTestKeyEvent)
+        # shorcut = QShortcut(QKeySequence(Qt.Key_F), self.facePlanes, activated=self.useforTestKeyEvent)
+        #===============================================================================================
 
+        #================================== Contrul region seed up and low range =======================
+        regionWide = QRangeSlider(self)
+        regionWide.setMax(255)
+        regionWide.setMin(0)
+        regionWide.setStart(150)
+        regionWide.setEnd(255)
+        regionWide.setRange(0, 255)
+        regionWide.setDrawValues(True)
+        regionWide.setBackgroundStyle('background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #222, stop:1 #333);')
+        regionWide.handle.setStyleSheet('background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #8EE5EE, stop:1 #393);')
+        regionWide.startValueChanged.connect(self.rangeSliderStartVolue)
+        regionWide.endValueChanged.connect(self.rangeSliderEndVolue)
+        #===============================================================================================
 
         self.modCombox = QComboBox(self)
         self.modCombox.addItem('Normal')
@@ -105,16 +127,18 @@ class dicomImage2DdisplayWidget(QWidget):
         self.modCombox.keyPressEvent = self.customComboxKeyEvent
         self.modCombox.move((self.width() - self.facePlanes.width() - self.modCombox.width()), 0)
 
-        self.layerBar = QScrollBar(Qt.Horizontal, self)
-        self.layerBar.setGeometry(0, 0, 512, 5)
-        self.layerBar.setMinimum(0)
-        self.layerBar.setMaximum(min(self.datas.shape))
-        self.layerBar.setValue(0)
-        self.layerBar.sliderMoved.connect(self.selectLayer)
+        self.layerScrollBar = QScrollBar(Qt.Horizontal, self)
+        self.layerScrollBar.setGeometry(0, 0, 128, 5)
+        self.layerScrollBar.setMinimum(0)
+        self.layerScrollBar.setMaximum(min(self.datas.shape))
+        self.layerScrollBar.setValue(0)
+        self.layerScrollBar.sliderMoved.connect(self.selectLayer)
 
         self.BaseBoxLayout = QBoxLayout(QBoxLayout.TopToBottom)
-        self.BaseBoxLayout.addWidget(self.layerBar, 0)
+        self.BaseBoxLayout.addWidget(self.layerScrollBar, 0)
+        self.BaseBoxLayout.addWidget(regionWide, 1)
         self.BaseBoxLayout.setAlignment(Qt.AlignTop)
+
 
         self.secondBoxLayout = QBoxLayout(QBoxLayout.LeftToRight)
         self.secondBoxLayout.addLayout(self.BaseBoxLayout)
@@ -123,7 +147,7 @@ class dicomImage2DdisplayWidget(QWidget):
         self.secondBoxLayout.setAlignment(Qt.AlignTop)
 
         self.groupbox = QGroupBox(self)
-        self.groupbox.setGeometry(32, -64, 512, 64)
+        self.groupbox.setGeometry(28, -64, 512, 64)
         self.groupbox.setLayout(self.secondBoxLayout)
 
         self.showButton = QPushButton(self)
@@ -159,6 +183,18 @@ class dicomImage2DdisplayWidget(QWidget):
         print(self.seedList)
         # print('number is :', num)
         # print(tmpC, tmpS)
+        pass
+
+    def rangeSliderStartVolue(self, event):
+        self.LowAndUpper[0] = event
+        self.choiceDisplayMod()
+        print(event)
+        pass
+
+    def rangeSliderEndVolue(self, event):
+        self.LowAndUpper[1] = event
+        self.choiceDisplayMod()
+        print(event)
         pass
 
     def viewSeedinList(self, event):
@@ -204,7 +240,7 @@ class dicomImage2DdisplayWidget(QWidget):
     pos = pyqtProperty(QPointF, fset=setGroup_pos)
 
     def selectLayer(self, event):
-        self.idxSlice = self.layerBar.value()
+        self.idxSlice = self.layerScrollBar.value()
         self.choiceDisplayMod()
         pass
 
@@ -235,7 +271,7 @@ class dicomImage2DdisplayWidget(QWidget):
 
 
     def faceItem_Choice(self, faceEvent):
-        print(faceEvent)
+        
         if faceEvent == self.facePlane[0]:
             self.topfaceView()
             self.currentFace = self.facePlane[0]
@@ -329,22 +365,28 @@ class dicomImage2DdisplayWidget(QWidget):
                                                            replaceValue=1,
                                                            )
         self.regionArea = SimpleITK.GetArrayFromImage(self.imgWhiteMatter)
-        self.imgWhiteMatter = SimpleITK.GetImageFromArray(self.regionArea)
         self.drawGrowingAreaContour()
         pass
 
     def drawGrowingAreaContour(self):
+        foreColorvalue = 1
         self.imgWhiteMatter = SimpleITK.GetImageFromArray(self.regionArea)
         self.imgWhiteMatterNoHoles = SimpleITK.VotingBinaryHoleFilling(image1=self.imgWhiteMatter,
                                                                        radius=[2] * 3,
                                                                        majorityThreshold=50,
                                                                        backgroundValue=0,
-                                                                       foregroundValue=1)
+                                                                       foregroundValue=foreColorvalue)
         regionContour = SimpleITK.LabelContour(self.imgWhiteMatterNoHoles)
+        # tmpWmatter = self.imgWhiteMatter
+        # regionContour = tmpWmatter | regionContour
         tmpImage = SimpleITK.LabelOverlay(self.imgOriginal, regionContour)
         regionContourArray = SimpleITK.GetArrayFromImage(tmpImage)
         self.imData = regionContourArray
         self.displayDicomImage()
+
+        # print(self.imgWhiteMatterNoHoles)
+        # print('\n'.join(dir(self.imgWhiteMatterNoHoles)))
+
         pass
 
     #==============================Key board event ============================================
@@ -403,17 +445,21 @@ class dicomImage2DdisplayWidget(QWidget):
 
 #=============================Region mod mouse Press and released event============================
     def regionModMousePressEvent(self, event):
-        if event.buttons() == Qt.RightButton:
+
+        if event.buttons() == Qt.LeftButton and self.regionDrawMod != 0:
             xAxis = event.pos().x()
             yAxis = event.pos().y()
             if xAxis >= 0 and yAxis >= 0:
                 tmpX = math.floor(xAxis * (self.baseImageSize / self.imLable.width()))
                 tmpY = math.floor(yAxis * (self.baseImageSize / self.imLable.height()))
-                self.regionArea[tmpY - self.regionDrawSize:tmpY + self.regionDrawSize,
-                tmpX - self.regionDrawSize:tmpX + self.regionDrawSize] = 0
-                self.drawGrowingAreaContour()
+                if self.regionDrawMod == 1:
+                    self.regionArea[tmpY - self.regionDrawSize:tmpY + self.regionDrawSize,
+                    tmpX - self.regionDrawSize:tmpX + self.regionDrawSize] = 1
+                elif self.regionDrawMod == 2:
+                    self.regionArea[tmpY - self.regionDrawSize:tmpY + self.regionDrawSize,
+                    tmpX - self.regionDrawSize:tmpX + self.regionDrawSize] = 0
+            self.drawGrowingAreaContour()
 
-        print(event.buttons())
         pass
 
     def regionModMouseReleasedEvent(self, Event):
@@ -424,26 +470,41 @@ class dicomImage2DdisplayWidget(QWidget):
 
 #=====================================Region mod mouse move event==================================
     def regionModMouseMoveEvent(self, event):
-        if event.buttons() == Qt.LeftButton:
-            xAxis = event.pos().x()
-            yAxis = event.pos().y()
-            if xAxis >= 0 and yAxis >= 0:
-                self.PosXY[0] = math.floor(xAxis * (self.baseImageSize / self.imLable.width()))
-                self.PosXY[1] = math.floor(yAxis * (self.baseImageSize / self.imLable.height()))
-                self.seedList[self.seedSelectNum] = (self.PosXY[0], self.PosXY[1])
-            else:
-                print('Region Mod has Nagtive number')
-                pass
-        elif event.buttons() == Qt.RightButton:
+        self.posX = event.pos().x()
+        self.posY = event.pos().y()
+        if event.buttons() == Qt.LeftButton and self.regionDrawMod == 0:
+            if self.regionDrawMod == 0:
+                xAxis = event.pos().x()
+                yAxis = event.pos().y()
+                if xAxis >= 0 and yAxis >= 0:
+                    self.PosXY[0] = math.floor(xAxis * (self.baseImageSize / self.imLable.width()))
+                    self.PosXY[1] = math.floor(yAxis * (self.baseImageSize / self.imLable.height()))
+                    self.seedList[self.seedSelectNum] = (self.PosXY[0], self.PosXY[1])
+                else:
+                    print('Region Mod has Nagtive number')
+        elif event.buttons() == Qt.LeftButton and self.regionDrawMod != 0:
             xAxis = event.pos().x()
             yAxis = event.pos().y()
             if xAxis >= 0 and yAxis >= 0:
                 tmpX = math.floor(xAxis * (self.baseImageSize / self.imLable.width()))
                 tmpY = math.floor(yAxis * (self.baseImageSize / self.imLable.height()))
-                self.regionArea[tmpY - self.regionDrawSize:tmpY + self.regionDrawSize, tmpX - self.regionDrawSize:tmpX + self.regionDrawSize] = 0
-                self.drawGrowingAreaContour()
-                return
-
+                if self.regionDrawMod == 2:
+                    # self.drawPanterbegin = tmpY - self.regionDrawSize
+                    # self.drawPanterEnd = tmpX - self.regionDrawSize
+                    # self.showDrawTool()
+                    self.regionArea[tmpY - self.regionDrawSize:tmpY + self.regionDrawSize, tmpX - self.regionDrawSize:tmpX + self.regionDrawSize] = 0
+                elif self.regionDrawMod == 1:
+                    # self.drawPanterbegin = tmpY - self.regionDrawSize
+                    # self.drawPanterEnd = tmpX - self.regionDrawSize
+                    # self.showDrawTool()
+                    self.regionArea[tmpY - self.regionDrawSize:tmpY + self.regionDrawSize, tmpX - self.regionDrawSize:tmpX + self.regionDrawSize] = 1
+                else:
+                    print('regionModMouseMoveEvent regionDrawMod error......')
+                    return
+            self.drawGrowingAreaContour()
+            return
+        else:
+            print('regionModMouseMoveEvent error......')
         self.choiceDisplayMod()
         pass
 #===================================================================================================
@@ -483,19 +544,30 @@ class dicomImage2DdisplayWidget(QWidget):
         angleY = angle.y()
 
         if angleY > 0:
-            if self.LowAndUpper[0] < self.LowAndUpper[1] or \
-                    self.LowAndUpper[1] > self.LowAndUpper[0]:
-                self.LowAndUpper[0] += 1
-                self.LowAndUpper[1] -= 1
+            self.regionDrawSize += 1
         elif angleY < 0:
-            if self.LowAndUpper[0] < self.LowAndUpper[1] or \
-                    self.LowAndUpper[1] > self.LowAndUpper[0]:
-                self.LowAndUpper[0] -= 1
-                self.LowAndUpper[1] += 1
-
-        print(self.LowAndUpper)
-        self.choiceDisplayMod()
+            self.regionDrawSize -= 1
         pass
+
+    def setRegionDrawMod(self, event):
+        if event == 0:
+            self.regionDrawMod = 0
+        elif event == 1:
+            self.regionDrawMod = 1
+        elif event == 2:
+            self.regionDrawMod = 2
+        else:
+            print('setRegionDrawMod error....')
+        pass
+
+    def paintEvent(self, QPaintEvent):
+        pen1 = QPen(Qt.blue, 1)
+        q = QPainter(self)
+        q.setPen(pen1)
+        q.drawRect(self.posX - 25, self.posY - 25, 50, 50)
+        print('draw ---------- draw')
+
+
 
     @property
     def window_width(self):

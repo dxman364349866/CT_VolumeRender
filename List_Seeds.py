@@ -24,17 +24,20 @@ class SeedButton(QWidget):
         self.eyeBtn.clicked.connect(self.eyeViewEvent)
 
 
-        self.colorBtn = QPushButton(self)
-        self.colorBtn.setStyleSheet('background-color: rgb(' + str(self.regionColor[0]) + ',' + str(self.regionColor[1]) + ',' + str(self.regionColor[2]) + ')')
+        # self.colorBtn = QPushButton(self)
+        # self.colorBtn.setStyleSheet('background-color: rgb(' + str(self.regionColor[0]) + ',' + str(self.regionColor[1]) + ',' + str(self.regionColor[2]) + ')')
         self.selectBtn = QPushButton(self.seedName + str(self.seedIndex), self)
         self.selectBtn.clicked.connect(self.selectSeed)
+
+
         self.deleteBtn = QPushButton('Delete:' + str(self.seedIndex), self)
         self.deleteBtn.clicked.connect(self.deleteSeed)
 
         self.BtnLayout = QHBoxLayout(self)
         self.BtnLayout.addWidget(self.eyeBtn)
-        self.BtnLayout.addWidget(self.colorBtn)
         self.BtnLayout.addWidget(self.selectBtn)
+        # self.BtnLayout.addWidget(self.drawModBtn)
+        # self.BtnLayout.addWidget(self.eraserBtn)
         self.BtnLayout.addWidget(self.deleteBtn)
         self.BtnLayout.setAlignment(Qt.AlignLeft)
         self.setLayout(self.BtnLayout)
@@ -66,6 +69,20 @@ class SeedButton(QWidget):
             self.setSelectButonDefaultcolor()
 
         pass
+
+    # def drawMod(self):
+    #     if self.selectBtmIsSelect == True:
+    #         self.drawAnderaserSingnal.emit(1)
+    #     else:
+    #         self.drawAnderaserSingnal.emit(0)
+    #     pass
+    #
+    # def eraserMod(self):
+    #     if self.selectBtmIsSelect == True:
+    #         self.drawAnderaserSingnal.emit(2)
+    #     else:
+    #         self.drawAnderaserSingnal.emit(0)
+    #     pass
 
     def deleteSeed(self, event):
         self.deleteLater()

@@ -49,6 +49,7 @@ class dicom_widgetEve(QWidget):
         self.OperationWin.sendSeedSignal.connect(self.showSeedsList)
         self.OperationWin.sendSeedSelectSignal.connect(self.selectSeedInList)
         self.OperationWin.sendSeedRegionViewSignal.connect(self.seedRegionView)
+        self.OperationWin.sendDrawModSignal.connect(self.setDrawMod)
 
         # self.dicom2D.addSeedsSignal.connect(self.addSeedList)
 
@@ -112,6 +113,17 @@ class dicom_widgetEve(QWidget):
 
     def seedRegionView(self, event):
         self.dicom2D.viewSeedinList(event)
+        pass
+
+    def setDrawMod(self, event):
+        if event == 0:
+            self.dicom2D.setRegionDrawMod(0)
+        elif event == 1:
+            self.dicom2D.setRegionDrawMod(1)
+        elif event == 2:
+            self.dicom2D.setRegionDrawMod(2)
+        else:
+            print('setDrawMod error....')
         pass
 
     def resizeEvent(self, QResizeEvent):

@@ -8,6 +8,7 @@ from List_Seeds import SeedButton
 
 class segmentationOperation(QGroupBox):
     Signal_BoolParameters = pyqtSignal(bool)
+    Signal_PenAndEraser = pyqtSignal(int)
     def __init__(self):
         super(segmentationOperation, self).__init__()
         self.setGeometry(0, 0, 512, 64)
@@ -15,8 +16,8 @@ class segmentationOperation(QGroupBox):
     def initUI(self):
         self.addSeed = QPushButton('Add', self)
         self.addSeed.clicked.connect(self.addSeedevent)
-        self.removeSeed = QPushButton('Remove', self)
-        self.removeSeed.clicked.connect(self.removeSeedevent)
+        # self.removeSeed = QPushButton('Remove', self)
+        # self.removeSeed.clicked.connect(self.removeSeedevent)
 
         #==============Define pen and eraser==================
         self.regionPen = QPushButton('pen', self)
@@ -37,7 +38,7 @@ class segmentationOperation(QGroupBox):
 
         self.seedOpertaionLayout = QHBoxLayout(self)
         self.seedOpertaionLayout.addWidget(self.addSeed)
-        self.seedOpertaionLayout.addWidget(self.removeSeed)
+        # self.seedOpertaionLayout.addWidget(self.removeSeed)
         self.seedOpertaionLayout.addWidget(self.regionPen)
         self.seedOpertaionLayout.addWidget(self.regionEraser)
         self.seedOpertaionLayout.addWidget(self.showButton)
@@ -56,11 +57,13 @@ class segmentationOperation(QGroupBox):
     def regionPenEvent(self, event):
         if self.regionPenmod == False:
             self.regionPen.setStyleSheet('background-color: rgb(255, 255, 255)')
+            self.Signal_PenAndEraser.emit(1)
             if self.regionEraserMod == True:
                 self.regionEraser.setStyleSheet('background-color: None')
                 self.regionEraserMod = False
             self.regionPenmod = True
         elif self.regionPenmod == True:
+            self.Signal_PenAndEraser.emit(0)
             self.regionPen.setStyleSheet('background-color: None')
             self.regionPenmod = False
         else:
@@ -70,11 +73,13 @@ class segmentationOperation(QGroupBox):
     def regionEraserEvent(self, event):
         if self.regionEraserMod == False:
             self.regionEraser.setStyleSheet('background-color: rgb(255, 255, 255)')
+            self.Signal_PenAndEraser.emit(2)
             if self.regionPenmod == True:
                 self.regionPen.setStyleSheet('background-color: None')
                 self.regionPenmod = False
             self.regionEraserMod = True
         elif self.regionEraserMod == True:
+            self.Signal_PenAndEraser.emit(0)
             self.regionEraser.setStyleSheet('background-color: None')
             self.regionEraserMod = False
         else:
@@ -203,7 +208,7 @@ class dicom2D_OperationWin(QWidget):
     sendSeedSignal = pyqtSignal(list)
     sendSeedSelectSignal = pyqtSignal(int)
     sendSeedRegionViewSignal = pyqtSignal(list)
-
+    sendDrawModSignal = pyqtSignal(int)
     def __init__(self):
         super(dicom2D_OperationWin, self).__init__()
         self.setWindowTitle('SeedOperationWindow')
@@ -216,6 +221,7 @@ class dicom2D_OperationWin(QWidget):
 
         self.segmentOpration = segmentationOperation()
         self.segmentOpration.Signal_BoolParameters.connect(self.gotSignal)
+        self.segmentOpration.Signal_PenAndEraser.connect(self.drawSignal)
 
         self.segmentDisplay = segmentationDisplay()
         self.segmentDisplay.seedColorsSignal.connect(self.seedSeedInforList)
@@ -252,6 +258,16 @@ class dicom2D_OperationWin(QWidget):
             print('the segmentDisplay signal error')
         pass
 
+    def drawSignal(self, event):
+        if event == 1:
+            self.sendDrawModSignal.emit(1)
+        elif event == 2:
+            self.sendDrawModSignal.emit(2)
+        elif event == 0:
+            self.sendDrawModSignal.emit(0)
+        else:
+            print('drawSignal function error.....')
+        pass
 
     def addSeedsignal(self):
         # print('Add')
