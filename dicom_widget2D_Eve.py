@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import QWidget, QApplication, QGridLayout, QMdiSubWindow, Q
 from PyQt5.QtGui import QPalette
 from PyQt5.QtCore import Qt
 
-from dicom_WidgetAndArea import dicomImage2DdisplayWidget
+from dicom_widget2D import dicomImage2DdisplayWidget
 from dicom_widget2D_Operation import dicom2D_OperationWin
 from functools import partial
 from List_Seeds import SeedButton
