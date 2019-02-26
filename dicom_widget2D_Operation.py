@@ -103,6 +103,7 @@ class segmentationOperation(QGroupBox):
 class segmentationDisplay(QGroupBox):
     seedColorsSignal = pyqtSignal(list)
     seedSelectSignal = pyqtSignal(int)
+    seedRemoveSignal = pyqtSignal(int)
     seedRegionViewSignal = pyqtSignal(list)
 
     def __init__(self):
@@ -151,6 +152,7 @@ class segmentationDisplay(QGroupBox):
 
     def addSeedwidget(self):
         seedBtn = SeedButton(Num=self.seedListBar.layout().count(), Name='RegionArea:')
+
         seedBtn.selectSignal.connect(self.selectSeedButton)
         seedBtn.deleteSignal.connect(self.removeSeedButton)
         seedBtn.viewRegionsignal.connect(self.viewRegionArea)
@@ -161,8 +163,10 @@ class segmentationDisplay(QGroupBox):
         self.seedListBar.addWidget(seedBtn)
         self.regionSeedinfor.append(seedInform)
 
-        self.seedColorsSignal.emit(self.regionSeedinfor)
+        # self.seedColorsSignal.emit(self.regionSeedinfor)
+        self.seedColorsSignal.emit(seedInform)
 
+        print('seeds', self.regionSeedinfor)
         pass
 
     def selectSeedButton(self, event):
@@ -180,7 +184,6 @@ class segmentationDisplay(QGroupBox):
         pass
 
     def removeSeedButton(self, event):
-        # print(event)
         for num in range(event, self.seedListBar.layout().count()):
             item = self.seedListBar.itemAt(num)
             TmpW = item.widget()
@@ -190,7 +193,9 @@ class segmentationDisplay(QGroupBox):
 
 
         self.regionSeedinfor.remove(self.regionSeedinfor[event])
-        self.seedColorsSignal.emit(self.regionSeedinfor)
+        # self.seedColorsSignal.emit(self.regionSeedinfor)
+        self.seedRemoveSignal.emit(event)
+        print(event)
 
         pass
 
@@ -207,6 +212,7 @@ class segmentationDisplay(QGroupBox):
 class dicom2D_OperationWin(QWidget):
     sendSeedSignal = pyqtSignal(list)
     sendSeedSelectSignal = pyqtSignal(int)
+    sendSeedRemoveSignal = pyqtSignal(int)
     sendSeedRegionViewSignal = pyqtSignal(list)
     sendDrawModSignal = pyqtSignal(int)
     def __init__(self):
@@ -224,9 +230,10 @@ class dicom2D_OperationWin(QWidget):
         self.segmentOpration.Signal_PenAndEraser.connect(self.drawSignal)
 
         self.segmentDisplay = segmentationDisplay()
-        self.segmentDisplay.seedColorsSignal.connect(self.seedSeedInforList)
-        self.segmentDisplay.seedSelectSignal.connect(self.seedSeedSelect)
+        self.segmentDisplay.seedColorsSignal.connect(self.sendSeedInforList)
+        self.segmentDisplay.seedSelectSignal.connect(self.sendSeedSelect)
         self.segmentDisplay.seedRegionViewSignal.connect(self.seedRegionView)
+        self.segmentDisplay.seedRemoveSignal.connect(self.sendSeedRemove)
 
         self.splitter.addWidget(self.segmentOpration)
         self.splitter.addWidget(self.segmentDisplay)
@@ -236,13 +243,17 @@ class dicom2D_OperationWin(QWidget):
 
         pass
 
-    def seedSeedInforList(self, list):
+    def sendSeedInforList(self, list):
         # print(list)
         self.sendSeedSignal.emit(list)
         pass
 
-    def seedSeedSelect(self, num):
+    def sendSeedSelect(self, num):
         self.sendSeedSelectSignal.emit(num)
+        pass
+
+    def sendSeedRemove(self, num):
+        self.sendSeedRemoveSignal.emit(num)
         pass
 
     def seedRegionView(self, event):

@@ -75,7 +75,9 @@ class dicomImage2DdisplayWidget(QWidget):
         self.currentFace = self.facePlane[self._face]
         #============================RegionGrowingParameter=====================
         self.PosXY = [150, 75]
-        self.seedList = [(self.PosXY[0], self.PosXY[1])]
+        # self.seedList = [(self.PosXY[0], self.PosXY[1])]
+        self.seedList = []
+
         self.seedSelectNum = 0
 
         self.LowAndUpper = [10, 3000]
@@ -164,39 +166,42 @@ class dicomImage2DdisplayWidget(QWidget):
         self.groupbox.move(apos.x(), apos.y())
         pass
 
-    def setSeedsColor(self, colorList):
+    def setSeedsColor(self, lists):
 
-        self.seedList.clear()
-        self.seedsColors.clear()
-        for i in range(0, len(colorList)):
-            self.seedsColors.append(colorList[i][0])
-            self.seedList.append(colorList[i][1])
+        # self.seedList.clear()
+        # self.seedsColors.clear()
+        # for i in range(0, len(colorList)):
+        #     self.seedsColors.append(colorList[i][0])
+        #     self.seedList.append(colorList[i][1])
+        self.seedsColors.append(lists[0])
+        self.seedList.append(lists[1])
+        print('seedList:', self.seedList)
 
-        print('Color: ', self.seedsColors)
-        print('--------------------------------')
-        print('Seeds: ', self.seedList)
         pass
 
     def selectSeedinList(self, num):
         # tmpS = self.seedList[num]
         # tmpC = self.seedsColors[num]
         self.seedSelectNum = num
-        print(self.seedsColors)
-        print(self.seedList)
+        # print(self.seedsColors)
+        # print(self.seedList)
         # print('number is :', num)
         # print(tmpC, tmpS)
+        pass
+
+    def removeSeedinList(self, num):
+        self.seedList.remove(self.seedList[num])
+        self.choiceDisplayMod()
         pass
 
     def rangeSliderStartVolue(self, event):
         self.LowAndUpper[0] = event
         self.choiceDisplayMod()
-        print(event)
         pass
 
     def rangeSliderEndVolue(self, event):
         self.LowAndUpper[1] = event
         self.choiceDisplayMod()
-        print(event)
         pass
 
     def viewSeedinList(self, event):

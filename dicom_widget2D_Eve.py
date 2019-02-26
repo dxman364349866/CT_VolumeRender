@@ -48,6 +48,7 @@ class dicom_widgetEve(QWidget):
         self.OperationWin.show()
         self.OperationWin.sendSeedSignal.connect(self.showSeedsList)
         self.OperationWin.sendSeedSelectSignal.connect(self.selectSeedInList)
+        self.OperationWin.sendSeedRemoveSignal.connect(self.removeSeedInList)
         self.OperationWin.sendSeedRegionViewSignal.connect(self.seedRegionView)
         self.OperationWin.sendDrawModSignal.connect(self.setDrawMod)
 
@@ -103,12 +104,17 @@ class dicom_widgetEve(QWidget):
 
     def showSeedsList(self, list):
         # print('Hello:' + str(list))
+        print(list)
         self.dicom2D.setSeedsColor(list)
         pass
 
     def selectSeedInList(self, num):
         # print('select num is : ', num)
         self.dicom2D.selectSeedinList(num)
+        pass
+
+    def removeSeedInList(self, num):
+        self.dicom2D.removeSeedinList(num)
         pass
 
     def seedRegionView(self, event):

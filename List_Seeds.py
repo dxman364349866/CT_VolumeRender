@@ -16,6 +16,8 @@ class SeedButton(QWidget):
         self.selectBtmIsSelect = False
         self.isEyeopen = False
 
+        self.seedValue = (0, 0)
+
         self.initUI()
     def initUI(self):
         self.eyeBtn = QPushButton(self)
